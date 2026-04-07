@@ -1,0 +1,97 @@
+municipal_norm,municipality,population,units_per_1k_residents,nhwhi_p,nhaa_p,nhas_p,lat_p,compliance_pct,zoning_bin,dev_intensity_bin
+acton,Acton,1090.0,1100.0,63.1,2.4,25.1,3.8,96.591,Most flexible zoning,low
+arlington,Arlington,653.0,1396.6309341500769,75.2,2.3,12.2,4.6,97.824,Moderately flexible,high
+ashland,Ashland,646.0,1791.0216718266254,68.5,2.7,13.1,6.1,95.769,Moderately flexible,high
+bedford,Bedford,875.0,818.2857142857143,73.5,2.5,15.6,3.6,96.526,Most flexible zoning,low
+bellingham,Bellingham,604.0,99.33774834437084,85.4,1.8,3.0,4.4,94.797,Most flexible zoning,low
+belmont,Belmont,231.0,1883.1168831168832,69.6,1.9,18.5,4.7,96.313,Moderately flexible,high
+beverly,Beverly,752.0,2902.925531914894,84.6,2.1,2.2,6.3,96.392,Moderately flexible,high
+bolton,Bolton,169.0,2402.3668639053253,86.5,0.3,4.7,2.6,95.778,Moderately flexible,high
+boston,Boston,1369.0,80617.2388604821,44.6,19.1,11.2,18.7,94.667,Most flexible zoning,high
+boxborough,Boxborough,369.0,1062.330623306233,67.1,2.2,21.5,4.0,91.205,Most flexible zoning,low
+braintree,Braintree,924.0,2506.493506493506,70.1,3.3,17.2,4.8,88.425,Most flexible zoning,high
+brookline,Brookline,796.0,1912.0603015075376,65.3,3.1,19.1,6.8,96.62,Moderately flexible,high
+cambridge,Cambridge,413.0,42842.61501210654,55.4,10.1,19.1,9.1,97.324,Most flexible zoning,high
+canton,Canton,492.0,3782.520325203252,72.9,9.1,8.8,4.4,92.07,Most flexible zoning,high
+carlisle,Carlisle,380.0,557.8947368421052,78.8,0.7,11.3,3.2,98.084,Most flexible zoning,low
+cohasset,Cohasset,679.0,537.5552282768778,92.8,0.3,1.2,2.3,94.873,Most flexible zoning,low
+concord,Concord,392.0,2721.9387755102043,81.8,2.5,6.3,4.7,98.212,Most flexible zoning,high
+danvers,Danvers,95.0,15021.052631578948,87.3,1.9,2.3,4.4,92.103,Most flexible zoning,high
+dedham,Dedham,119.0,3504.201680672269,78.0,5.9,3.7,8.4,98.67,Most flexible zoning,high
+duxbury,Duxbury,579.0,873.9205526770294,92.7,0.4,1.4,2.2,93.709,Moderately flexible,low
+essex,Essex,414.0,787.4396135265702,92.5,0.4,1.0,2.7,45.959,Most flexible zoning,low
+foxborough,Foxborough,695.0,1277.697841726619,83.6,4.1,4.5,3.8,95.693,Moderately flexible,high
+framingham,Framingham,696.0,5034.482758620689,53.7,5.9,7.2,16.8,95.375,Moderately flexible,high
+franklin,Franklin,1324.0,608.0060422960725,85.1,1.9,5.5,3.7,95.296,Most flexible zoning,low
+gloucester,Gloucester,854.0,601.8735362997658,88.3,1.0,1.1,4.7,98.662,Most flexible zoning,low
+hamilton,Hamilton,253.0,86.95652173913044,88.9,0.7,4.1,2.6,99.057,Most flexible zoning,low
+hanover,Hanover,678.0,992.6253687315634,91.9,0.8,1.8,1.9,97.733,Moderately flexible,low
+hingham,Hingham,340.0,4682.352941176471,91.5,0.6,2.3,2.2,98.556,Most flexible zoning,high
+holbrook,Holbrook,835.0,86.22754491017965,65.6,14.6,4.6,7.2,90.348,Most flexible zoning,low
+holliston,Holliston,99.0,7898.989898989898,84.2,1.1,6.2,3.4,94.9,Most flexible zoning,high
+hopkinton,Hopkinton,495.0,4517.171717171717,73.2,1.0,17.8,3.9,98.181,Moderately flexible,high
+hudson,Hudson,108.0,10611.111111111111,78.6,1.8,2.9,6.3,98.342,Most flexible zoning,high
+hull,Hull,434.0,700.4608294930875,91.7,0.7,1.1,2.2,97.483,Moderately flexible,low
+ipswich,Ipswich,427.0,702.576112412178,91.0,0.6,1.6,3.0,93.414,Most flexible zoning,low
+lexington,Lexington,564.0,195.03546099290784,56.7,1.3,33.1,3.4,88.434,Most flexible zoning,low
+lincoln,Lincoln,482.0,614.1078838174275,76.2,3.2,6.4,7.3,98.688,Moderately flexible,low
+littleton,Littleton,189.0,9740.74074074074,83.1,1.3,8.1,3.2,98.949,Most flexible zoning,high
+lynn,Lynn,271.0,30767.527675276753,34.1,10.6,6.7,44.0,87.446,Moderately flexible,high
+lynnfield,Lynnfield,550.0,916.3636363636364,86.5,0.8,5.8,3.1,98.085,Most flexible zoning,low
+malden,Malden,1233.0,2256.2854825628547,40.0,14.2,25.8,10.4,93.811,Most flexible zoning,high
+manchester,Manchester,780.0,60.256410256410255,93.3,0.1,1.1,2.2,96.665,Moderately flexible,low
+marblehead,Marblehead,615.0,154.47154471544715,90.8,0.8,1.3,3.8,97.968,Moderately flexible,low
+marlborough,Marlborough,886.0,1214.4469525959366,59.1,3.1,5.9,15.9,97.694,Most flexible zoning,low
+marshfield,Marshfield,185.0,7275.675675675676,93.2,0.5,0.8,1.9,96.139,Most flexible zoning,high
+maynard,Maynard,547.0,784.2778793418647,83.0,2.0,3.4,5.6,95.38,Moderately flexible,low
+medfield,Medfield,706.0,926.3456090651558,87.5,1.1,3.8,3.2,97.887,Most flexible zoning,low
+medford,Medford,438.0,8965.753424657534,66.8,8.1,11.4,6.2,98.635,Moderately flexible,high
+medway,Medway,1036.0,886.1003861003861,88.3,1.3,2.9,3.1,95.957,Most flexible zoning,low
+melrose,Melrose,328.0,7045.731707317073,79.6,3.1,7.4,4.5,99.097,Moderately flexible,high
+middleton,Middleton,806.0,323.8213399503722,84.3,1.7,3.4,7.4,88.647,Most flexible zoning,low
+milford,Milford,951.0,1096.740273396425,66.0,2.3,2.2,12.3,94.047,Moderately flexible,low
+millis,Millis,448.0,1209.821428571429,88.0,1.3,2.8,3.4,96.427,Moderately flexible,low
+milton,Milton,828.0,555.5555555555555,71.0,12.5,6.2,4.9,99.186,Moderately flexible,low
+nahant,Nahant,83.0,337.34939759036143,91.0,1.1,1.6,3.1,95.824,Moderately flexible,low
+natick,Natick,807.0,1831.4745972738535,75.6,2.1,12.0,4.8,98.633,Moderately flexible,high
+needham,Needham,653.0,1977.0290964777948,81.1,1.4,9.5,3.8,96.303,Moderately flexible,high
+newton,Newton,900.0,4356.666666666666,70.1,2.9,16.5,5.1,98.258,Moderately flexible,high
+norfolk,Norfolk,311.0,324.75884244372986,84.1,5.1,2.6,5.2,98.164,Most flexible zoning,low
+north reading,North Reading,1070.0,964.4859813084112,88.5,0.8,3.8,3.0,94.734,Most flexible zoning,low
+norwell,Norwell,451.0,2594.2350332594233,91.2,0.6,2.4,2.2,99.496,Most flexible zoning,high
+norwood,Norwood,699.0,1074.3919885550788,72.5,7.3,7.4,7.4,98.297,Moderately flexible,low
+peabody,Peabody,886.0,3431.151241534989,77.3,3.3,2.4,9.9,98.653,Moderately flexible,high
+pembroke,Pembroke,948.0,150.8438818565401,92.5,0.6,1.0,1.7,95.587,Moderately flexible,low
+quincy,Quincy,664.0,10548.192771084336,54.2,5.4,30.7,5.1,97.969,Moderately flexible,high
+randolph,Randolph,953.0,304.30220356768103,26.6,41.9,12.9,10.9,98.62,Moderately flexible,low
+reading,Reading,258.0,3007.751937984496,87.2,1.2,5.3,2.7,96.815,Moderately flexible,high
+revere,Revere,195.0,26656.410256410258,44.9,4.7,5.5,37.3,95.648,Most flexible zoning,high
+rockland,Rockland,1107.0,74.97741644083108,82.5,3.4,2.0,3.4,91.773,Moderately flexible,low
+rockport,Rockport,684.0,33.62573099415204,93.1,0.7,1.0,2.5,88.987,Moderately flexible,low
+salem,Salem,1780.0,1002.808988764045,68.5,4.1,2.8,19.8,90.599,Moderately flexible,low
+saugus,Saugus,580.0,2022.4137931034488,75.1,3.8,4.9,9.1,91.927,Most flexible zoning,high
+scituate,Scituate,238.0,4605.042016806722,93.4,0.3,0.7,1.6,97.753,Most flexible zoning,high
+sharon,Sharon,308.0,3009.7402597402597,66.8,4.0,21.2,3.3,98.9,Moderately flexible,high
+sherborn,Sherborn,408.0,553.921568627451,81.7,0.6,7.6,3.4,96.436,Moderately flexible,low
+southborough,Southborough,314.0,1175.15923566879,75.5,1.0,14.5,3.6,96.912,Most flexible zoning,low
+stoneham,Stoneham,962.0,1117.4636174636175,81.4,2.8,6.5,4.2,97.798,Most flexible zoning,low
+stoughton,Stoughton,1154.0,861.3518197573657,61.0,17.3,5.4,6.6,88.198,Moderately flexible,low
+stow,Stow,537.0,1005.586592178771,85.7,0.9,4.3,3.6,97.299,Most flexible zoning,low
+sudbury,Sudbury,515.0,1669.902912621359,80.9,1.3,9.0,3.6,97.35,Moderately flexible,high
+swampscott,Swampscott,966.0,484.472049689441,85.8,1.7,2.2,6.6,95.734,Moderately flexible,low
+topsfield,Topsfield,212.0,471.6981132075472,90.0,0.7,1.8,4.1,96.375,Moderately flexible,low
+wakefield,Wakefield,1018.0,296.6601178781925,85.7,1.5,4.2,4.2,98.008,Most flexible zoning,low
+walpole,Walpole,968.0,1721.0743801652893,82.9,3.1,5.3,4.2,83.266,Moderately flexible,high
+waltham,Waltham,1011.0,1241.345202769535,60.4,6.8,12.2,16.4,92.308,Moderately flexible,high
+watertown,Watertown,1008.0,2178.5714285714284,73.1,3.4,9.5,7.7,89.078,Moderately flexible,high
+wayland,Wayland,288.0,1694.4444444444443,76.8,0.9,13.5,3.9,99.142,Most flexible zoning,high
+wellesley,Wellesley,1077.0,1247.910863509749,73.3,2.0,14.8,5.2,98.581,Moderately flexible,high
+wenham,Wenham,170.0,894.1176470588235,87.4,1.7,4.0,4.6,97.671,Moderately flexible,low
+weston,Weston,261.0,965.5172413793103,74.0,2.0,16.0,4.1,99.333,Moderately flexible,low
+westwood,Westwood,323.0,1975.2321981424147,82.8,1.6,9.1,2.9,99.65,Most flexible zoning,high
+weymouth,Weymouth,953.0,4802.728226652675,77.4,4.6,6.9,4.5,97.072,Moderately flexible,high
+wilmington,Wilmington,316.0,734.1772151898734,86.2,1.3,5.4,3.0,96.999,Most flexible zoning,low
+winchester,Winchester,310.0,1590.3225806451612,74.6,0.9,16.0,3.4,96.265,Moderately flexible,high
+winthrop,Winthrop,87.0,4804.597701149425,78.9,2.1,1.5,12.5,98.059,Most flexible zoning,high
+woburn,Woburn,916.0,4414.847161572053,72.8,5.3,8.5,6.4,97.38,Moderately flexible,high
+wrentham,Wrentham,123.0,10073.170731707316,89.6,1.3,2.7,2.5,97.647,Most flexible zoning,high

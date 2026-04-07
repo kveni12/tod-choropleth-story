@@ -1,0 +1,2722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Income, TOD, and Affordability</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root {
+      --bg: #f5f2eb;
+      --paper: #fffdf8;
+      --ink: #1f2430;
+      --muted: #5e6573;
+      --line: #d8d2c7;
+      --accent: #00843d;
+      --accent-soft: #d8efe2;
+      --warning: #ed8b00;
+      --warning-soft: #fbe6cc;
+      --blue-1: #edf4ff;
+      --blue-2: #bfd6f6;
+      --blue-3: #6fa8dc;
+      --blue-4: #2f6ea6;
+      --blue-5: #003da5;
+      --shadow: 0 14px 34px rgba(31, 36, 48, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(0, 132, 61, 0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(0, 61, 165, 0.09), transparent 24%),
+        var(--bg);
+      color: var(--ink);
+    }
+    .page {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 28px 20px 44px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid rgba(120, 114, 102, 0.18);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .hero-main {
+      padding: 28px;
+    }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #0b5e2c;
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+    h1, h2, h3, .eyebrow, .summary-stat .v, .summary-stat .k {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    h1 {
+      margin-bottom: 14px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+    }
+    .subtitle, .hero-main p, .story p, .controls p, .chart-note, .footer p {
+      color: var(--muted);
+      line-height: 1.58;
+    }
+    .hero-side {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .mini-callout {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #f7f3ec;
+      border: 1px solid var(--line);
+    }
+    .mini-callout strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.94rem;
+    }
+    .story {
+      padding: 22px 24px;
+      margin-bottom: 20px;
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .story-step {
+      padding: 14px;
+      border-radius: 14px;
+      background: #faf7f0;
+      border: 1px solid var(--line);
+    }
+    .story-step h3 {
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .controls {
+      position: sticky;
+      top: 16px;
+      padding: 20px;
+    }
+    .controls h2 {
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+    }
+    .control-block + .control-block {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+    .label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    input, select, button {
+      font: inherit;
+    }
+    input[type="number"], select, input[type="search"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #c9c1b4;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .range-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .play-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .play-row button {
+      flex: 0 0 auto;
+      min-width: 92px;
+    }
+    .play-slider-wrap {
+      flex: 1 1 auto;
+    }
+    .play-caption {
+      margin-top: 6px;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+    .button-row, .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 9px 14px;
+      background: var(--ink);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+    button.secondary {
+      background: #ece6db;
+      color: var(--ink);
+    }
+    button:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+    .check-grid {
+      display: grid;
+      gap: 8px;
+      max-height: 200px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .check-item {
+      display: flex;
+      gap: 8px;
+      align-items: start;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+    .summary {
+      padding: 20px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .summary-stat {
+      padding: 14px;
+      border-radius: 14px;
+      background: #faf7f0;
+      border: 1px solid var(--line);
+    }
+    .summary-stat .k {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 700;
+    }
+    .summary-stat .v {
+      margin-top: 6px;
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .selection-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .summary-helper {
+      margin-top: 10px;
+      margin-bottom: 8px;
+      font-size: 0.94rem;
+      color: var(--muted);
+    }
+    .chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #efe9dc;
+      color: #433d34;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .mini-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .mini-summary-card {
+      padding: 12px;
+      border-radius: 12px;
+      background: #faf7f0;
+      border: 1px solid var(--line);
+    }
+    .mini-summary-card h3 {
+      margin-bottom: 8px;
+      font-size: 0.98rem;
+    }
+    .mini-summary-card p {
+      margin: 4px 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+    .chart-card {
+      padding: 20px;
+    }
+    .chart-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: end;
+      margin-bottom: 10px;
+    }
+    .chart-head h2 {
+      margin-bottom: 6px;
+      font-size: 1.2rem;
+    }
+    .chart-subhead {
+      max-width: 720px;
+    }
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+    .chart-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .chart-toolbar select {
+      width: auto;
+      min-width: 210px;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-scale {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-ramp {
+      display: inline-grid;
+      grid-auto-flow: column;
+      gap: 2px;
+    }
+    .legend-ramp span {
+      width: 18px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .chart-wrap {
+      position: relative;
+      min-height: 420px;
+    }
+    .small-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .small-chart {
+      min-height: 320px;
+    }
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0;
+      background: rgba(20, 24, 31, 0.94);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      width: 230px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    }
+    .tooltip strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+    }
+    .footer {
+      margin-top: 18px;
+      padding: 18px 22px;
+    }
+    .footer ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 240px;
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      background: #faf7f1;
+    }
+    @media (max-width: 1060px) {
+      .hero, .dashboard, .small-grid, .story-grid, .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      .controls {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-main card">
+        <div class="eyebrow">Final Project POC</div>
+        <h1>TOD works for affordability only when lower-income households can still claim the new housing.</h1>
+        <p class="subtitle">
+          This proof of concept studies <strong>who transit-oriented development affects through income</strong>. The core argument is simple:
+          <strong>today's TOD pattern often still looks like gentrification pressure</strong>, because development near transit is increasing faster than protected affordability.
+          The policy answer is not less TOD. It is <strong>more affordability inside TOD, at the same time as growth</strong>.
+        </p>
+      </div>
+      <aside class="hero-side card">
+        <div class="mini-callout">
+          <strong>Main question</strong>
+          <p>Are municipalities with more households under $125k actually getting new transit-oriented housing, and when they do, is enough of it affordable?</p>
+        </div>
+        <div class="mini-callout">
+          <strong>Main interaction</strong>
+          <p>Click municipalities to link the scatter, map, and detail views.</p>
+        </div>
+        <div class="mini-callout">
+          <strong>Why income</strong>
+          <p>Income is the most direct way to ask whether TOD expands access or simply makes high-opportunity places easier for higher-income households to capture.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="story card">
+      <h2>The Argument</h2>
+      <p>
+        Imagine a household earning around <strong>$90,000</strong> in an MBTA-served municipality. It is not a low-income household, but it is still highly exposed to rent increases and rising entry costs. If TOD adds housing near transit but that housing is mostly market-rate, then the likely outcome is <strong>higher-income capture</strong>, not reduced displacement pressure.
+      </p>
+      <div class="story-grid">
+        <div class="story-step">
+          <h3>1. Vulnerability</h3>
+          <p>Start with the share of households under $125k. That is the exposure side of the affordability story.</p>
+        </div>
+        <div class="story-step">
+          <h3>2. Growth</h3>
+          <p>Then ask where new units are landing over time and whether they are actually inside the TOD threshold.</p>
+        </div>
+        <div class="story-step">
+          <h3>3. Affordability</h3>
+          <p>Finally, ask whether that growth carries enough affordable housing to counter displacement pressure.</p>
+        </div>
+      </div>
+      <p style="margin-top:16px">
+        <strong>Education and mobility belong in this story too.</strong> Rising <strong>education levels</strong> often travel with rising incomes, so they help show whether TOD is concentrating opportunity among more advantaged households. <strong>Mobility outcomes</strong> matter for the same reason: even if transit access improves and driving falls, affordability pressure can still leave lower-income households worse off if they cannot remain near that access. In other words, education and mobility help explain <em>who</em> is positioned to benefit from TOD, but income remains the clearest starting point.
+      </p>
+    </section>
+
+    <section class="dashboard">
+      <aside class="controls card">
+        <h2>Controls</h2>
+        <p>Keep this simple: adjust the time window, the TOD distance definition, and the municipality scope.</p>
+
+        <div class="control-block">
+          <label class="label">Completion year range</label>
+          <div class="range-row">
+            <input id="year-start" type="number" min="1990" max="2026" value="1990" />
+            <input id="year-end" type="number" min="1990" max="2026" value="2026" />
+          </div>
+          <div class="play-row">
+            <button id="play-years" class="secondary" type="button">Play years</button>
+            <div class="play-slider-wrap">
+              <input id="play-year" type="range" min="1990" max="2026" value="2026" />
+              <div id="play-caption" class="play-caption">Showing cumulative development from 1990 through 2026.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <label class="label">TOD threshold: <span id="threshold-label">0.50 miles</span></label>
+          <input id="threshold" type="range" min="0.2" max="1.5" step="0.05" value="0.5" />
+        </div>
+
+        <div class="control-block">
+          <label class="label" for="growth-scale">Growth scale</label>
+          <select id="growth-scale">
+            <option value="units">Raw units</option>
+            <option value="share">Share of visible-window growth</option>
+          </select>
+        </div>
+
+        <div class="control-block">
+          <label class="check-item">
+            <input id="show-trendline" type="checkbox" />
+            <span>Show trendline on main scatter</span>
+          </label>
+        </div>
+
+        <div class="control-block">
+          <label class="label" for="dominance-filter">Show municipalities</label>
+          <select id="dominance-filter">
+            <option value="all">All municipalities</option>
+            <option value="tod">TOD-dominant only</option>
+            <option value="nonTod">Non-TOD-dominant only</option>
+          </select>
+        </div>
+
+        <div class="control-block">
+          <label class="label">Zoning profile</label>
+          <div id="zoning-filters" class="check-grid"></div>
+        </div>
+
+        <div class="control-block">
+          <label class="label" for="search">Municipality search</label>
+          <input id="search" type="search" placeholder="Search municipality..." />
+        </div>
+
+        <div class="control-block">
+          <div class="button-row">
+            <button class="secondary" id="reset-selection" type="button">Clear selection</button>
+            <button class="secondary" id="reset-controls" type="button">Reset filters</button>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <label class="label">Quick compare presets</label>
+          <div id="presets" class="preset-row"></div>
+        </div>
+      </aside>
+
+      <div class="content">
+        <section class="summary card">
+          <h2>How to read the evidence</h2>
+          <p id="summary-copy" class="chart-note">Loading data…</p>
+          <p class="summary-helper">Start with the scatter to see where growth lands, then use the map and time-series views to ask whether that growth is reaching lower-income places and whether it is affordable enough to reduce displacement pressure.</p>
+          <div class="summary-grid">
+            <div class="summary-stat">
+              <div class="k">Municipalities shown</div>
+              <div class="v" id="stat-munis">-</div>
+            </div>
+            <div class="summary-stat">
+              <div class="k">Units in window</div>
+              <div class="v" id="stat-units">-</div>
+            </div>
+            <div class="summary-stat">
+              <div class="k">Affordable share</div>
+              <div class="v" id="stat-affordable">-</div>
+            </div>
+            <div class="summary-stat">
+              <div class="k">TOD share of units</div>
+              <div class="v" id="stat-tod">-</div>
+            </div>
+          </div>
+          <div id="selection-chips" class="selection-chips"></div>
+          <div id="selected-summary" class="mini-summary-grid"></div>
+        </section>
+
+        <section class="chart-card card">
+          <div class="chart-head">
+            <div class="chart-subhead">
+              <h2>Growth is not consistently reaching lower-income municipalities</h2>
+              <p class="chart-note">
+                Each point is a municipality. <strong>X</strong> = share of households under $125k. <strong>Y</strong> = new development. <strong>Size</strong> = affordable units. <strong>Fill</strong> = affordable share. <strong>Stroke</strong> = whether most visible units fall inside or outside the TOD threshold.
+              </p>
+            </div>
+            <div class="legend">
+              <span class="legend-item"><span class="swatch" style="background:var(--accent);"></span>TOD-dominant</span>
+              <span class="legend-item"><span class="swatch" style="background:var(--warning);"></span>Non-TOD-dominant</span>
+              <span class="legend-item"><span class="swatch" style="background:var(--blue-5);"></span>Higher affordable share</span>
+            </div>
+          </div>
+          <div id="scatter" class="chart-wrap"></div>
+        </section>
+
+        <section class="chart-card card">
+          <div class="chart-head">
+            <div class="chart-subhead">
+              <h2>The map shows where vulnerability and growth overlap</h2>
+              <p class="chart-note">
+                Use the map to scan where development, affordability, and income vulnerability are concentrated. Development-based layers change with playback; income layers show the municipal baseline.
+              </p>
+            </div>
+          </div>
+          <div class="chart-toolbar">
+            <label class="label" for="map-metric" style="margin:0">Map metric</label>
+            <select id="map-metric">
+              <option value="units">New units in current window</option>
+              <option value="affordableUnits">Affordable units in current window</option>
+              <option value="under125">Households under $125k</option>
+              <option value="high125">Households $125k+</option>
+              <option value="affordableShare">Affordable share</option>
+              <option value="todShare">TOD share of units</option>
+            </select>
+          </div>
+          <div id="choropleth" class="chart-wrap" style="min-height:520px"></div>
+        </section>
+
+        <div class="small-grid">
+          <section class="chart-card card">
+            <div class="chart-head">
+              <div class="chart-subhead">
+                <h2>When production rises, affordability often lags</h2>
+                <p class="chart-note">
+                  Bars show total units by year. The line shows affordable share. Rising production without a rising affordable share is the clearest sign that TOD is not yet operating as anti-displacement policy.
+                </p>
+              </div>
+            </div>
+            <div id="timeline" class="chart-wrap small-chart"></div>
+          </section>
+
+          <section class="chart-card card">
+            <div class="chart-head">
+              <div class="chart-subhead">
+              <h2>Too much of the growth still lands outside TOD</h2>
+              <p class="chart-note">
+                  This chart shows how the yearly growth mix splits between TOD and non-TOD projects. If most added units remain outside the TOD threshold, transit-oriented growth is not scaling fast enough to counter displacement pressure.
+                </p>
+              </div>
+            </div>
+            <div id="composition" class="chart-wrap small-chart"></div>
+          </section>
+        </div>
+
+        <div class="small-grid">
+          <section class="chart-card card">
+            <div class="chart-head">
+              <div class="chart-subhead">
+              <h2>Pressure is concentrating in a small set of municipalities</h2>
+              <p class="chart-note">
+                  These are the municipalities absorbing the most development in the current window. Darker fill means more affordability inside that growth. Large growth with low affordability is the clearest gentrification-warning pattern here.
+                </p>
+              </div>
+            </div>
+            <div id="ranked-growth" class="chart-wrap small-chart"></div>
+          </section>
+
+          <section class="chart-card card">
+            <div class="chart-head">
+              <div class="chart-subhead">
+              <h2>Most new housing is still market-rate</h2>
+              <p class="chart-note">
+                  This yearly composition chart shows whether added housing is protected affordable housing or mostly market-rate production. If market-rate dominates year after year, TOD growth is less likely to reduce displacement pressure on its own.
+                </p>
+              </div>
+            </div>
+            <div id="affordability-composition" class="chart-wrap small-chart"></div>
+          </section>
+        </div>
+
+        <div class="small-grid">
+          <section class="chart-card card">
+            <div class="chart-head">
+              <div class="chart-subhead">
+              <h2>Higher-vulnerability municipalities do not consistently capture growth</h2>
+              <p class="chart-note">
+                  This chart shows what share of yearly development lands in municipalities above versus below the regional under-$125k median. If the higher-vulnerability line stays low, growth is bypassing the places most exposed to displacement pressure.
+                </p>
+              </div>
+            </div>
+            <div id="growth-capture" class="chart-wrap small-chart"></div>
+          </section>
+        </div>
+
+        <div class="small-grid">
+          <section class="chart-card card" style="grid-column: 1 / -1;">
+            <div class="chart-head">
+              <div class="chart-subhead">
+              <h2>At the tract level, TOD areas show uneven neighborhood change</h2>
+              <p class="chart-note">
+                  This tract-level map uses the NHGIS comparison window <strong>2010-2014 vs 2016-2020</strong>. Switch between income, education, and mobility change to see where neighborhood conditions shifted most. Green outlines mark TOD tracts.
+                </p>
+              </div>
+            </div>
+            <div class="chart-toolbar">
+              <label class="label" for="tract-map-metric" style="margin:0">Tract map metric</label>
+              <select id="tract-map-metric">
+                <option value="income">Median income change</option>
+                <option value="education">Bachelor's share change</option>
+                <option value="mobility">Travel time change</option>
+              </select>
+            </div>
+            <div id="tract-choropleth" class="chart-wrap" style="min-height:520px"></div>
+          </section>
+
+          <section class="chart-card card">
+            <div class="chart-head">
+              <div class="chart-subhead">
+              <h2>TOD tracts saw stronger education change than non-TOD tracts</h2>
+              <p class="chart-note">
+                  This graph uses the local NHGIS nominal tract file for <strong>2010-2014 vs 2016-2020</strong> and a local tract
+                  <strong>TOD vs non-TOD flag</strong>. Education comes from NHGIS table <strong>B69</strong>.
+                </p>
+              </div>
+            </div>
+            <div id="tract-education" class="chart-wrap small-chart"></div>
+          </section>
+
+          <section class="chart-card card">
+            <div class="chart-head">
+              <div class="chart-subhead">
+              <h2>Mobility outcomes remain mixed even in TOD tracts</h2>
+              <p class="chart-note">
+                  This view keeps the same <strong>TOD vs non-TOD</strong> framing, but shows the
+                  <strong>distribution</strong> of average travel-time change from NHGIS <strong>Aggregate Travel Time to Work for Commuters</strong>.
+                  That makes it easier to see spread and overlap instead of only the average.
+                </p>
+              </div>
+            </div>
+            <div id="tract-mobility" class="chart-wrap small-chart"></div>
+          </section>
+        </div>
+
+        <section class="summary card">
+          <h2>Bottom line</h2>
+          <p class="chart-note">The tract-level evidence sharpens the same takeaway as the municipal dashboard: TOD is only anti-gentrification policy when affordability grows with it.</p>
+          <div id="tract-takeaway" class="summary-grid"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="footer card">
+      <h2>Resources</h2>
+      <p>
+        This is one focused D3 proof of concept built around a single exploratory question. The non-trivial interaction is the linked selection between the main scatterplot and the detail views, plus dynamic filtering by time, zoning, and TOD threshold. The narrative role is clear: it tests whether TOD is currently serving lower-income places, or whether affordability is lagging behind growth.
+      </p>
+      <ul>
+        <li><strong>Data used:</strong> MassBuilds project records, MBTA station locations, municipal income aggregates, and municipal context metrics.</li>
+        <li><strong>Interpretation:</strong> this view is descriptive, not causal. It shows where income vulnerability, development pressure, and affordability line up.</li>
+        <li><strong>Education and mobility:</strong> these are supporting concepts for the final project. Education helps interpret who is capturing neighborhood advantage, and mobility helps test whether transit access improvements are translating into lower daily burden.</li>
+        <li><strong>Main takeaway:</strong> TOD becomes anti-gentrification policy only when affordability is built into the growth pattern.</li>
+      </ul>
+    </section>
+  </div>
+
+  <script>
+    const fmtInt = d3.format(",");
+    const fmtPct = d3.format(".0%");
+    const fmtPct1 = d3.format(".1%");
+    const incomePalette = ["#edf4ff", "#bfd6f6", "#6fa8dc", "#2f6ea6", "#003da5"];
+    const affordableColor = d3.scaleThreshold()
+      .domain([0.05, 0.1, 0.2, 0.35])
+      .range(incomePalette);
+    const presets = [
+      { label: "Boston / Cambridge / Somerville", munis: ["Boston", "Cambridge", "Somerville"] },
+      { label: "Newton / Brookline / Wellesley", munis: ["Newton", "Brookline", "Wellesley"] },
+      { label: "Quincy / Malden / Revere", munis: ["Quincy", "Malden", "Revere"] }
+    ];
+
+    const state = {
+      yearStart: 1990,
+      yearEnd: 2026,
+      threshold: 0.5,
+      growthScale: "units",
+      showTrendline: false,
+      dominanceFilter: "all",
+      zoning: new Set(),
+      search: "",
+      selected: new Set(),
+      mapMetric: "units",
+      tractMapMetric: "income"
+    };
+
+    const files = {
+      projects: "./data/massbuilds_housing_development.csv",
+      stations: "./data/mbta_stations.csv",
+      income: "./data/muni_income_agg.csv",
+      story: "./data/municipality_story_metrics.csv",
+      housing: "./data/housing_sf_other_w_census.csv",
+      muniGeo: "./data/muni_simplified.geojson",
+      nhgisNominal: "./nhgis0006_ts_nominal_tract.csv",
+      tractTodFlags: "./data/tract_tod_flags.json",
+      tractGeo: "./data/tracts.geojson"
+    };
+
+    function num(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function normalize(name) {
+      return (name || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, "");
+    }
+
+    function haversineMiles(lat1, lon1, lat2, lon2) {
+      const toRad = deg => deg * Math.PI / 180;
+      const r = 3958.8;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 2 * r * Math.asin(Math.sqrt(a));
+    }
+
+    function linearRegression(points) {
+      const valid = points.filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
+      if (valid.length < 2) return null;
+      const meanX = d3.mean(valid, d => d.x);
+      const meanY = d3.mean(valid, d => d.y);
+      const numerator = d3.sum(valid, d => (d.x - meanX) * (d.y - meanY));
+      const denominator = d3.sum(valid, d => (d.x - meanX) ** 2);
+      if (!denominator) return null;
+      const slope = numerator / denominator;
+      const intercept = meanY - slope * meanX;
+      return { slope, intercept };
+    }
+
+    function makeTooltip(root) {
+      return root.append("div").attr("class", "tooltip");
+    }
+
+    function addHtmlLegend(root, items) {
+      const legend = root.append("div").attr("class", "legend").style("margin-bottom", "10px");
+      items.forEach(item => {
+        const entry = legend.append("span").attr("class", "legend-item");
+        if (item.type === "line") {
+          entry.append("span")
+            .style("width", "18px")
+            .style("height", "0")
+            .style("border-top", `3px solid ${item.color}`)
+            .style("display", "inline-block");
+        } else if (item.type === "outline") {
+          entry.append("span")
+            .style("width", "12px")
+            .style("height", "12px")
+            .style("border-radius", "999px")
+            .style("border", `2px solid ${item.color}`)
+            .style("background", item.fill || "transparent")
+            .style("display", "inline-block");
+        } else {
+          entry.append("span").attr("class", "swatch").style("background", item.color || "#999");
+        }
+        entry.append("span").text(item.label);
+      });
+      return legend;
+    }
+
+    function addRampLegend(root, labelLeft, labelRight, colors) {
+      const legend = root.append("div").attr("class", "legend").style("margin-bottom", "10px");
+      const scale = legend.append("span").attr("class", "legend-scale");
+      scale.append("span").text(labelLeft);
+      const ramp = scale.append("span").attr("class", "legend-ramp");
+      colors.forEach(color => ramp.append("span").style("background", color));
+      scale.append("span").text(labelRight);
+      return legend;
+    }
+
+    function positionTooltip(root, tooltip, event) {
+      const rect = root.node().getBoundingClientRect();
+      let x = event.clientX - rect.left + 14;
+      let y = event.clientY - rect.top + 14;
+      const node = tooltip.node();
+      if (node) {
+        const tw = node.offsetWidth || 0;
+        const th = node.offsetHeight || 0;
+        if (x + tw > rect.width - 10) x = Math.max(8, x - tw - 28);
+        if (y + th > rect.height - 10) y = Math.max(8, y - th - 28);
+      }
+      tooltip.style("left", `${x}px`).style("top", `${y}px`);
+    }
+
+    Promise.all([
+      d3.csv(files.projects),
+      d3.csv(files.stations),
+      d3.csv(files.income),
+      d3.csv(files.story),
+      d3.csv(files.housing),
+      d3.json(files.muniGeo),
+      d3.csv(files.nhgisNominal),
+      d3.json(files.tractTodFlags),
+      d3.json(files.tractGeo)
+    ]).then(([projectsRaw, stationsRaw, incomeRaw, storyRaw, housingRaw, muniGeo, nhgisNominalRaw, tractTodFlags, tractGeo]) => {
+      const stations = stationsRaw
+        .map(d => ({ lat: num(d.stop_lat || d.latitude), lon: num(d.stop_lon || d.longitude) }))
+        .filter(d => d.lat && d.lon);
+
+      const incomeByNorm = new Map(incomeRaw.map(d => [normalize(d.municipality || d.municipal_norm), {
+        municipality: d.municipality,
+        under125: num(d.pct_inc_low) + num(d.pct_inc_mid),
+        high125: num(d.pct_inc_high)
+      }]));
+
+      const storyByNorm = new Map(storyRaw.map(d => [normalize(d.municipality || d.municipal_norm), {
+        municipality: d.municipality,
+        zoningBin: d.zoning_bin || "Unknown",
+        baselineAffordableShare: num(d.affordable_share),
+        isMbta: num(d.is_mbta)
+      }]));
+
+      const householdByNorm = new Map(housingRaw.map(d => [normalize(d.muni), {
+        households: num(d.hh),
+        over200k: num(d.in200o),
+        incomeBinsKnown: true
+      }]));
+
+      const tractTodByGisjoin = new Map((tractTodFlags || []).map(d => [String(d.gisjoin), !!d.is_tod]));
+      const nhgisSupportRows = (nhgisNominalRaw || []).map(d => {
+        const gisjoin = String(d.GJOIN2010 || d.GISJOIN || "");
+        const total2010 = num(d.B69AA145) + num(d.B69AB145) + num(d.B69AC145);
+        const total2020 = num(d.B69AA205) + num(d.B69AB205) + num(d.B69AC205);
+        const bachelors2010 = total2010 ? (num(d.B69AC145) / total2010) * 100 : NaN;
+        const bachelors2020 = total2020 ? (num(d.B69AC205) / total2020) * 100 : NaN;
+        const income2010 = num(d.B79AA145);
+        const income2020 = num(d.B79AA205);
+        const workers2010 = num(d.CW0AA145);
+        const workers2020 = num(d.CW0AA205);
+        const travel2010 = workers2010 ? num(d.C98AA145) / workers2010 : NaN;
+        const travel2020 = workers2020 ? num(d.C98AA205) / workers2020 : NaN;
+        return {
+          gisjoin,
+          is_tod: tractTodByGisjoin.get(gisjoin),
+          bachelors_pct_change_10_20: Number.isFinite(bachelors2010) && Number.isFinite(bachelors2020) ? bachelors2020 - bachelors2010 : NaN,
+          median_income_change_pct_10_20: income2010 ? ((income2020 - income2010) / income2010) * 100 : NaN,
+          avg_travel_time_change_10_20: Number.isFinite(travel2010) && Number.isFinite(travel2020) ? travel2020 - travel2010 : NaN,
+          pop_2020: total2020
+        };
+      }).filter(d =>
+        d.gisjoin &&
+        Number.isFinite(d.pop_2020) &&
+        Number.isFinite(d.median_income_change_pct_10_20) &&
+        typeof d.is_tod === "boolean"
+      );
+
+      const projects = projectsRaw.map(d => {
+        const municipality = (d.municipal || "").trim();
+        const key = normalize(municipality);
+        const year = num(d.year_compl) || num(d.yrcomp_est);
+        const units = num(d.hu);
+        const affordableUnits = num(d.affrd_unit);
+        const lat = num(d.latitude);
+        const lon = num(d.longitude);
+        let distance = NaN;
+        if (lat && lon && stations.length) {
+          distance = d3.min(stations, s => haversineMiles(lat, lon, s.lat, s.lon));
+        }
+        return {
+          municipality,
+          municipalNorm: key,
+          year,
+          units,
+          affordableUnits,
+          distance,
+          hasDistance: Number.isFinite(distance),
+          status: d.status || "",
+          project: d.name || "(unnamed project)",
+          zoningBin: storyByNorm.get(key)?.zoningBin || "Unknown"
+        };
+      }).filter(d => d.municipality && d.year >= 1990 && d.year <= 2026 && d.units > 0);
+
+      const municipalityMeta = new Map();
+      const addMunicipalityMeta = (name, norm, extra = {}) => {
+        if (!norm) return;
+        const current = municipalityMeta.get(norm) || { municipality: name || extra.municipality || norm, municipalNorm: norm };
+        municipalityMeta.set(norm, { ...current, ...extra, municipality: current.municipality || name || extra.municipality || norm, municipalNorm: norm });
+      };
+
+      incomeRaw.forEach(d => addMunicipalityMeta(d.municipality || d.municipal_norm, normalize(d.municipality || d.municipal_norm)));
+      storyRaw.forEach(d => addMunicipalityMeta(d.municipality || d.municipal_norm, normalize(d.municipality || d.municipal_norm), { zoningBin: d.zoning_bin || "Unknown" }));
+      housingRaw.forEach(d => addMunicipalityMeta(d.muni, normalize(d.muni)));
+      projects.forEach(d => addMunicipalityMeta(d.municipality, d.municipalNorm, { zoningBin: d.zoningBin || "Unknown" }));
+
+      const municipalityList = Array.from(municipalityMeta.values())
+        .filter(d => Number.isFinite(incomeByNorm.get(d.municipalNorm)?.under125))
+        .sort((a, b) => a.municipality.localeCompare(b.municipality));
+      const allMunicipalities = municipalityList.map(d => d.municipality);
+      const zoningOptions = Array.from(new Set(
+        municipalityList.map(d => d.zoningBin || storyByNorm.get(d.municipalNorm)?.zoningBin || "Unknown")
+      )).sort((a, b) => a.localeCompare(b));
+      zoningOptions.forEach(z => state.zoning.add(z));
+
+      const controls = {
+        yearStart: document.getElementById("year-start"),
+        yearEnd: document.getElementById("year-end"),
+        playYears: document.getElementById("play-years"),
+        playYear: document.getElementById("play-year"),
+        playCaption: document.getElementById("play-caption"),
+        threshold: document.getElementById("threshold"),
+        thresholdLabel: document.getElementById("threshold-label"),
+        growthScale: document.getElementById("growth-scale"),
+        showTrendline: document.getElementById("show-trendline"),
+        dominanceFilter: document.getElementById("dominance-filter"),
+        zoningFilters: document.getElementById("zoning-filters"),
+        search: document.getElementById("search"),
+        resetSelection: document.getElementById("reset-selection"),
+        resetControls: document.getElementById("reset-controls"),
+        presets: document.getElementById("presets"),
+        mapMetric: document.getElementById("map-metric"),
+        tractMapMetric: document.getElementById("tract-map-metric")
+      };
+
+      let playTimer = null;
+
+      function stopPlayback() {
+        if (playTimer) {
+          window.clearInterval(playTimer);
+          playTimer = null;
+        }
+        controls.playYears.textContent = "Play years";
+      }
+
+      function syncYearUI() {
+        controls.yearStart.value = state.yearStart;
+        controls.yearEnd.value = state.yearEnd;
+        controls.playYear.value = state.yearEnd;
+        controls.playCaption.textContent = `Showing cumulative development from ${state.yearStart} through ${state.yearEnd}.`;
+      }
+
+      zoningOptions.forEach(zone => {
+        const label = document.createElement("label");
+        label.className = "check-item";
+        label.innerHTML = `<input type="checkbox" checked /> <span>${zone}</span>`;
+        const input = label.querySelector("input");
+        input.addEventListener("change", () => {
+          if (input.checked) state.zoning.add(zone);
+          else state.zoning.delete(zone);
+          draw();
+        });
+        controls.zoningFilters.appendChild(label);
+      });
+
+      presets.forEach(preset => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary";
+        button.textContent = preset.label;
+        button.addEventListener("click", () => {
+          state.selected = new Set(preset.munis.filter(m => allMunicipalities.includes(m)));
+          draw();
+        });
+        controls.presets.appendChild(button);
+      });
+
+      controls.yearStart.addEventListener("change", () => {
+        stopPlayback();
+        state.yearStart = Math.max(1990, Math.min(+controls.yearStart.value || 1990, state.yearEnd));
+        syncYearUI();
+        draw();
+      });
+
+      controls.yearEnd.addEventListener("change", () => {
+        stopPlayback();
+        state.yearEnd = Math.min(2026, Math.max(+controls.yearEnd.value || 2026, state.yearStart));
+        syncYearUI();
+        draw();
+      });
+
+      controls.playYear.addEventListener("input", () => {
+        stopPlayback();
+        state.yearEnd = Math.min(2026, Math.max(+controls.playYear.value || state.yearStart, state.yearStart));
+        syncYearUI();
+        draw();
+      });
+
+      controls.playYears.addEventListener("click", () => {
+        if (playTimer) {
+          stopPlayback();
+          return;
+        }
+        if (state.yearEnd >= 2026) {
+          state.yearEnd = state.yearStart;
+        }
+        syncYearUI();
+        draw();
+        controls.playYears.textContent = "Pause";
+        playTimer = window.setInterval(() => {
+          if (state.yearEnd >= 2026) {
+            stopPlayback();
+            return;
+          }
+          state.yearEnd += 1;
+          syncYearUI();
+          draw();
+        }, 700);
+      });
+
+      controls.threshold.addEventListener("input", () => {
+        state.threshold = +controls.threshold.value;
+        controls.thresholdLabel.textContent = `${state.threshold.toFixed(2)} miles`;
+        draw();
+      });
+
+      controls.growthScale.addEventListener("change", () => {
+        state.growthScale = controls.growthScale.value;
+        draw();
+      });
+
+      controls.showTrendline.addEventListener("change", () => {
+        state.showTrendline = controls.showTrendline.checked;
+        draw();
+      });
+
+      controls.dominanceFilter.addEventListener("change", () => {
+        state.dominanceFilter = controls.dominanceFilter.value;
+        draw();
+      });
+
+      controls.search.addEventListener("input", () => {
+        state.search = controls.search.value.trim().toLowerCase();
+        draw();
+      });
+
+      controls.mapMetric.addEventListener("change", () => {
+        state.mapMetric = controls.mapMetric.value;
+        draw();
+      });
+
+      controls.tractMapMetric.addEventListener("change", () => {
+        state.tractMapMetric = controls.tractMapMetric.value;
+        draw();
+      });
+
+      controls.resetSelection.addEventListener("click", () => {
+        state.selected.clear();
+        draw();
+      });
+
+      controls.resetControls.addEventListener("click", () => {
+        stopPlayback();
+        state.yearStart = 1990;
+        state.yearEnd = 2026;
+        state.threshold = 0.5;
+        state.growthScale = "units";
+        state.showTrendline = false;
+        state.dominanceFilter = "all";
+        state.search = "";
+        state.selected.clear();
+        controls.threshold.value = 0.5;
+        controls.thresholdLabel.textContent = "0.50 miles";
+        controls.growthScale.value = "units";
+        controls.showTrendline.checked = false;
+        controls.dominanceFilter.value = "all";
+        controls.search.value = "";
+        controls.mapMetric.value = "units";
+        state.mapMetric = "units";
+        controls.tractMapMetric.value = "income";
+        state.tractMapMetric = "income";
+        state.zoning = new Set(zoningOptions);
+        controls.zoningFilters.querySelectorAll("input").forEach(input => {
+          input.checked = true;
+        });
+        syncYearUI();
+        draw();
+      });
+
+      function projectsForControls(includeYearFilter = true) {
+        return projects.filter(d =>
+          (!includeYearFilter || (d.year >= state.yearStart && d.year <= state.yearEnd)) &&
+          state.zoning.has(d.zoningBin) &&
+          (!state.search || d.municipality.toLowerCase().includes(state.search))
+        );
+      }
+
+      function municipalityRows(projectRows, applyControlFilters = true) {
+        const roll = new Map(d3.rollups(projectRows, values => {
+          const units = d3.sum(values, d => d.units);
+          const affordableUnits = d3.sum(values, d => d.affordableUnits);
+          const todUnits = d3.sum(values.filter(d => d.hasDistance && d.distance <= state.threshold), d => d.units);
+          const nonTodUnits = units - todUnits;
+          const key = values[0].municipalNorm;
+          const income = incomeByNorm.get(key);
+          const story = storyByNorm.get(key);
+          const housing = householdByNorm.get(key);
+          return {
+            municipality: values[0].municipality,
+            municipalNorm: key,
+            units,
+            affordableUnits,
+            affordableShare: units ? affordableUnits / units : 0,
+            todUnits,
+            todShare: units ? todUnits / units : 0,
+            dominant: todUnits >= nonTodUnits ? "tod" : "nonTod",
+            under125: income ? income.under125 : NaN,
+            high125: income ? income.high125 : NaN,
+            zoningBin: story?.zoningBin || "Unknown",
+            baselineAffordableShare: story?.baselineAffordableShare || 0,
+            households: housing?.households || 0
+          };
+        }, d => d.municipalNorm));
+
+        return municipalityList
+          .filter(meta => {
+            if (!applyControlFilters) return true;
+            const zoningBin = storyByNorm.get(meta.municipalNorm)?.zoningBin || meta.zoningBin || "Unknown";
+            return state.zoning.has(zoningBin) && (!state.search || meta.municipality.toLowerCase().includes(state.search));
+          })
+          .map(meta => {
+            const existing = roll.get(meta.municipalNorm);
+            if (existing) return existing;
+            const income = incomeByNorm.get(meta.municipalNorm);
+            const story = storyByNorm.get(meta.municipalNorm);
+            const housing = householdByNorm.get(meta.municipalNorm);
+            return {
+              municipality: meta.municipality,
+              municipalNorm: meta.municipalNorm,
+              units: 0,
+              affordableUnits: 0,
+              affordableShare: 0,
+              todUnits: 0,
+              todShare: 0,
+              dominant: "none",
+              under125: income ? income.under125 : NaN,
+              high125: income ? income.high125 : NaN,
+              zoningBin: story?.zoningBin || meta.zoningBin || "Unknown",
+              baselineAffordableShare: story?.baselineAffordableShare || 0,
+              households: housing?.households || 0
+            };
+          })
+          .filter(d => Number.isFinite(d.under125));
+      }
+
+      function activeRows(allRows) {
+        if (!state.selected.size) return allRows;
+        return allRows.filter(d => state.selected.has(d.municipality));
+      }
+
+      function updateSummary(allRows, active, projectRows) {
+        const units = d3.sum(projectRows, d => d.units);
+        const affordableUnits = d3.sum(projectRows, d => d.affordableUnits);
+        const todUnits = d3.sum(projectRows.filter(d => d.hasDistance && d.distance <= state.threshold), d => d.units);
+        document.getElementById("stat-munis").textContent = fmtInt(allRows.length);
+        document.getElementById("stat-units").textContent = fmtInt(Math.round(units));
+        document.getElementById("stat-affordable").textContent = units ? fmtPct1(affordableUnits / units) : "0.0%";
+        document.getElementById("stat-tod").textContent = units ? fmtPct1(todUnits / units) : "0.0%";
+
+        const selection = active.length ? active : allRows;
+        const avgIncome = d3.mean(selection, d => d.under125) || 0;
+        const avgAffordable = d3.sum(selection, d => d.affordableUnits) / Math.max(1, d3.sum(selection, d => d.units));
+        const todDominantCount = selection.filter(d => d.dominant === "tod").length;
+        document.getElementById("summary-copy").innerHTML =
+          `From <strong>${state.yearStart}</strong> through <strong>${state.yearEnd}</strong>, the visible municipalities average <strong>${avgIncome.toFixed(1)}%</strong> of households under $125k. ` +
+          `<strong>${todDominantCount}</strong> of the ${selection.length} selected-or-visible municipalities are currently TOD-dominant by unit count, and the weighted affordable share is <strong>${fmtPct1(avgAffordable || 0)}</strong>. ` +
+          `Read high-growth, high-income-vulnerability, low-affordability places as the clearest gentrification-risk pattern.`;
+
+        const chips = document.getElementById("selection-chips");
+        chips.innerHTML = "";
+        const names = state.selected.size ? [...state.selected].sort((a, b) => a.localeCompare(b)) : ["All visible municipalities"];
+        names.forEach(name => {
+          const chip = document.createElement("span");
+          chip.className = "chip";
+          chip.textContent = name;
+          chips.appendChild(chip);
+        });
+
+        const selectedRoot = document.getElementById("selected-summary");
+        selectedRoot.innerHTML = "";
+        const selectedRows = state.selected.size
+          ? allRows.filter(d => state.selected.has(d.municipality)).sort((a, b) => a.municipality.localeCompare(b.municipality)).slice(0, 3)
+          : allRows
+              .filter(d => d.units > 0)
+              .sort((a, b) => d3.descending((a.under125 / 100) * a.units * (1 - a.affordableShare), (b.under125 / 100) * b.units * (1 - b.affordableShare)))
+              .slice(0, 1);
+
+        if (!selectedRows.length) {
+          const empty = document.createElement("div");
+          empty.className = "chart-note";
+          empty.textContent = "Click a municipality in the scatter or choropleth to see a quick local read here.";
+          selectedRoot.appendChild(empty);
+          return;
+        }
+
+        selectedRows.forEach(row => {
+          const card = document.createElement("div");
+          card.className = "mini-summary-card";
+          const heading = state.selected.size ? row.municipality : `${row.municipality} is a useful place to start`;
+          card.innerHTML =
+            `<h3>${heading}</h3>` +
+            `<p><strong>${row.under125.toFixed(1)}%</strong> of households are under $125k.</p>` +
+            `<p><strong>${fmtInt(Math.round(row.units))}</strong> units are visible in the current window, with <strong>${fmtPct1(row.affordableShare)}</strong> affordable.</p>` +
+            `<p><strong>${fmtPct1(row.todShare)}</strong> of those units fall inside the TOD threshold, so this place reads as <strong>${row.dominant === "tod" ? "TOD-dominant" : row.dominant === "nonTod" ? "non-TOD-dominant" : "not yet active"}</strong>.</p>`;
+          selectedRoot.appendChild(card);
+        });
+      }
+
+      function renderScatter(allRows, domainRows) {
+        const root = d3.select("#scatter");
+        root.selectAll("*").remove();
+        if (!allRows.length) {
+          root.append("div").attr("class", "empty").text("No municipalities match the current filters.");
+          return;
+        }
+
+        const visibleTotalUnits = Math.max(1, d3.sum(allRows, d => d.units));
+        const domainTotalUnits = Math.max(1, d3.sum(domainRows, d => d.units));
+        const yAccessor = state.growthScale === "share"
+          ? (d => (d.units / visibleTotalUnits) * 100)
+          : (d => d.units);
+        const yDomainAccessor = state.growthScale === "share"
+          ? (d => (d.units / domainTotalUnits) * 100)
+          : (d => d.units);
+        const yLabel = state.growthScale === "share"
+          ? "Share of visible-window growth (%)"
+          : "New units added in selected years";
+
+        const dominantLegend = addHtmlLegend(root, [
+          { type: "outline", color: "var(--accent)", fill: "#ffffff", label: "TOD-dominant municipality" },
+          { type: "outline", color: "var(--warning)", fill: "#ffffff", label: "Non-TOD-dominant municipality" },
+          { type: "outline", color: "#b7b0a3", fill: "#ffffff", label: "No units yet in current window" }
+        ]);
+        dominantLegend.append("span").attr("class", "legend-item").text("Point size = affordable units added");
+        addRampLegend(root, "Lower affordable share", "Higher affordable share", incomePalette);
+
+        const width = root.node().clientWidth || 800;
+        const height = 460;
+        const margin = { top: 20, right: 20, bottom: 54, left: 66 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const unitValues = domainRows.map(yDomainAccessor).filter(Number.isFinite).sort(d3.ascending);
+        const affordableValues = domainRows.map(d => d.affordableUnits).filter(Number.isFinite).sort(d3.ascending);
+        const yMax = state.growthScale === "share"
+          ? 100
+          : Math.max(1, d3.quantile(unitValues, 0.98) || d3.max(unitValues) || 1);
+        const rMax = Math.max(1, d3.quantile(affordableValues, 0.98) || d3.max(affordableValues) || 1);
+
+        const x = d3.scaleLinear()
+          .domain(d3.extent(domainRows, d => d.under125))
+          .nice()
+          .range([0, innerW]);
+        const y = d3.scaleLinear()
+          .domain([0, yMax])
+          .nice()
+          .range([innerH, 0])
+          .clamp(true);
+        const r = d3.scaleSqrt()
+          .domain([0, rMax])
+          .range([5, 22])
+          .clamp(true);
+
+        root.append("div")
+          .attr("class", "chart-note")
+          .style("margin-bottom", "10px")
+          .text(state.growthScale === "share"
+            ? "Linear y-axis, fixed at share of visible-window growth. Use this mode to see which municipalities capture the growth mix."
+            : `Linear y-axis, fixed over time. The chart is zoomed to the main municipal range through about ${d3.format(",.0f")(yMax)} units.`);
+
+        const tooltip = makeTooltip(root);
+
+        g.append("g")
+          .attr("transform", `translate(0,${innerH})`)
+          .call(d3.axisBottom(x).ticks(6).tickFormat(d => `${d}%`));
+        g.append("g")
+          .call(d3.axisLeft(y).ticks(6).tickFormat(state.growthScale === "share" ? d => `${d}%` : d3.format("~s")));
+
+        g.append("text")
+          .attr("x", innerW / 2)
+          .attr("y", innerH + 42)
+          .attr("text-anchor", "middle")
+          .attr("fill", "#5e6573")
+          .text("Households under $125k");
+        g.append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -innerH / 2)
+          .attr("y", -46)
+          .attr("text-anchor", "middle")
+          .attr("fill", "#5e6573")
+          .text(yLabel);
+
+        const avgX = d3.mean(domainRows, d => d.under125) || 0;
+        const avgY = d3.mean(domainRows, yDomainAccessor) || 0;
+        g.append("line")
+          .attr("x1", x(avgX)).attr("x2", x(avgX))
+          .attr("y1", 0).attr("y2", innerH)
+          .attr("stroke", "#b7b0a3").attr("stroke-dasharray", "5 4");
+        g.append("line")
+          .attr("x1", 0).attr("x2", innerW)
+          .attr("y1", y(avgY)).attr("y2", y(avgY))
+          .attr("stroke", "#b7b0a3").attr("stroke-dasharray", "5 4");
+
+        if (state.showTrendline) {
+          const regression = linearRegression(allRows.map(d => ({ x: d.under125, y: yAccessor(d) })));
+          if (regression) {
+            const xDomain = x.domain();
+            const trendPoints = xDomain.map(xVal => ({
+              x: xVal,
+              y: regression.slope * xVal + regression.intercept
+            }));
+            const line = d3.line()
+              .x(d => x(d.x))
+              .y(d => y(Math.max(0, Math.min(yMax, d.y))));
+
+            g.append("path")
+              .datum(trendPoints)
+              .attr("fill", "none")
+              .attr("stroke", "#374151")
+              .attr("stroke-width", 2)
+              .attr("stroke-dasharray", "8 5")
+              .attr("opacity", 0.8)
+              .attr("d", line);
+
+            g.append("text")
+              .attr("x", innerW - 8)
+              .attr("y", 16)
+              .attr("text-anchor", "end")
+              .attr("fill", "#374151")
+              .attr("font-size", 11)
+              .attr("font-weight", 700)
+              .text("Best-fit trend");
+          }
+        }
+
+        g.selectAll("circle")
+          .data(allRows, d => d.municipality)
+          .join("circle")
+          .attr("cx", d => x(d.under125))
+          .attr("cy", d => y(yAccessor(d)))
+          .attr("r", d => r(d.affordableUnits))
+          .attr("fill", d => affordableColor(d.affordableShare))
+          .attr("fill-opacity", d => state.selected.size && !state.selected.has(d.municipality) ? 0.28 : 0.9)
+          .attr("stroke", d => d.dominant === "tod" ? "var(--accent)" : d.dominant === "nonTod" ? "var(--warning)" : "#b7b0a3")
+          .attr("stroke-width", d => state.selected.has(d.municipality) ? 3.4 : 2.3)
+          .style("cursor", "pointer")
+          .on("click", (event, d) => {
+            event.stopPropagation();
+            if (state.selected.has(d.municipality)) state.selected.delete(d.municipality);
+            else state.selected.add(d.municipality);
+            draw();
+          })
+          .on("mouseenter", function(event, d) {
+            d3.select(this).attr("stroke-width", 3);
+            tooltip
+              .style("opacity", 1)
+              .html(
+                `<strong>${d.municipality}</strong>` +
+                `Households under $125k: ${d.under125.toFixed(1)}%<br/>` +
+                `New units: ${fmtInt(Math.round(d.units))}<br/>` +
+                `${state.growthScale === "share" ? `Share of visible-window growth: ${((d.units / visibleTotalUnits) * 100).toFixed(1)}%<br/>` : ""}` +
+                `Affordable share: ${fmtPct1(d.affordableShare)}<br/>` +
+                `TOD share: ${fmtPct1(d.todShare)}<br/>` +
+                `Zoning profile: ${d.zoningBin}`
+              );
+            positionTooltip(root, tooltip, event);
+          })
+          .on("mousemove", event => positionTooltip(root, tooltip, event))
+          .on("mouseleave", function() {
+            d3.select(this).attr("stroke-width", d => state.selected.has(d.municipality) ? 3.4 : 2.3);
+            tooltip.style("opacity", 0);
+          });
+
+        const calloutCandidates = [
+          {
+            label: "High vulnerability + high growth",
+            row: allRows
+              .filter(d => d.under125 >= avgX && yAccessor(d) >= avgY)
+              .sort((a, b) => d3.descending(a.units, b.units))[0],
+            dx: 12,
+            dy: -14
+          },
+          {
+            label: "Higher-income capture",
+            row: allRows
+              .filter(d => d.under125 < avgX && yAccessor(d) >= avgY)
+              .sort((a, b) => d3.descending(a.units, b.units))[0],
+            dx: -12,
+            dy: -16
+          },
+          {
+            label: "High vulnerability, low affordability",
+            row: allRows
+              .filter(d => d.under125 >= avgX && d.units > 0)
+              .sort((a, b) => d3.descending((a.under125 / 100) * a.units * (1 - a.affordableShare), (b.under125 / 100) * b.units * (1 - b.affordableShare)))[0],
+            dx: 12,
+            dy: 20
+          }
+        ].filter(d => d.row);
+
+        const usedNames = new Set();
+        calloutCandidates.forEach(callout => {
+          if (usedNames.has(callout.row.municipality)) return;
+          usedNames.add(callout.row.municipality);
+          const cx = x(callout.row.under125);
+          const cy = y(yAccessor(callout.row));
+          const labelX = Math.max(54, Math.min(innerW - 54, cx + callout.dx));
+          const labelY = Math.max(18, Math.min(innerH - 10, cy + callout.dy));
+
+          g.append("line")
+            .attr("x1", cx)
+            .attr("x2", labelX)
+            .attr("y1", cy)
+            .attr("y2", labelY)
+            .attr("stroke", "#6b7280")
+            .attr("stroke-width", 1.1)
+            .attr("stroke-dasharray", "3 3");
+
+          g.append("text")
+            .attr("x", labelX + (callout.dx < 0 ? -2 : 2))
+            .attr("y", labelY - 4)
+            .attr("text-anchor", callout.dx < 0 ? "end" : "start")
+            .attr("fill", "#374151")
+            .attr("font-size", 11)
+            .attr("font-weight", 700)
+            .text(callout.row.municipality);
+
+          g.append("text")
+            .attr("x", labelX + (callout.dx < 0 ? -2 : 2))
+            .attr("y", labelY + 10)
+            .attr("text-anchor", callout.dx < 0 ? "end" : "start")
+            .attr("fill", "#6b7280")
+            .attr("font-size", 10)
+            .text(callout.label);
+        });
+
+        svg.on("click", () => {
+          state.selected.clear();
+          draw();
+        });
+      }
+
+      function renderTractTakeaway(rows) {
+        const root = d3.select("#tract-takeaway");
+        root.html("");
+        if (!rows || !rows.length) return;
+        const todRows = rows.filter(d => d.is_tod);
+        const nonTodRows = rows.filter(d => !d.is_tod);
+        const metrics = [
+          {
+            title: "Income change",
+            key: "median_income_change_pct_10_20",
+            fmt: v => `${v.toFixed(1)}%`
+          },
+          {
+            title: "Bachelor's share change",
+            key: "bachelors_pct_change_10_20",
+            fmt: v => `${v.toFixed(1)} pp`
+          },
+          {
+            title: "Travel time change",
+            key: "avg_travel_time_change_10_20",
+            fmt: v => `${v.toFixed(1)} min`
+          }
+        ];
+        metrics.forEach(metric => {
+          const tod = nhgisWeightedMean(todRows, metric.key);
+          const nonTod = nhgisWeightedMean(nonTodRows, metric.key);
+          const diff = tod - nonTod;
+          const stars = significanceStars(permutationPValue(todRows, nonTodRows, d => d[metric.key]));
+          const card = root.append("div").attr("class", "summary-stat");
+          card.append("div").attr("class", "k").text(metric.title);
+          card.append("div")
+            .attr("class", "v")
+            .style("font-size", "1.15rem")
+            .text(`TOD ${diff >= 0 ? "+" : ""}${metric.fmt(diff)}`);
+          card.append("div")
+            .attr("class", "chart-note")
+            .style("margin-top", "8px")
+            .text(stars ? "significant vs non-TOD" : "not significant vs non-TOD");
+        });
+      }
+
+      function renderChoropleth(allRows, domainRows) {
+        const root = d3.select("#choropleth");
+        root.selectAll("*").remove();
+        if (!muniGeo || !muniGeo.features || !allRows.length) {
+          root.append("div").attr("class", "empty").text("No municipal map data available.");
+          return;
+        }
+
+        const width = root.node().clientWidth || 520;
+        const height = 340;
+        const metricConfig = {
+          units: { label: "New units in current window", get: d => d.units, fmt: d3.format(",.0f") },
+          affordableUnits: { label: "Affordable units in current window", get: d => d.affordableUnits, fmt: d3.format(",.0f") },
+          under125: { label: "Households under $125k", get: d => d.under125 / 100, fmt: d3.format(".0%") },
+          high125: { label: "Households $125k+", get: d => d.high125 / 100, fmt: d3.format(".0%") },
+          affordableShare: { label: "Affordable share", get: d => d.affordableShare, fmt: d3.format(".0%") },
+          todShare: { label: "TOD share of units", get: d => d.todShare, fmt: d3.format(".0%") }
+        }[state.mapMetric];
+        const byMunicipality = new Map(allRows.map(d => [normalize(d.municipality), d]));
+        const domainValues = domainRows.map(metricConfig.get).filter(Number.isFinite).sort(d3.ascending);
+        const colorDomain = state.mapMetric === "affordableShare" || state.mapMetric === "todShare"
+          ? [0, 1]
+          : [0, d3.quantile(domainValues, 0.98) || d3.max(domainValues) || 1];
+        const color = d3.scaleQuantize().domain(colorDomain).range(incomePalette);
+        const mapLegend = addRampLegend(root, "Lower", `Higher ${metricConfig.label.toLowerCase()}`, incomePalette);
+        mapLegend.append("span").attr("class", "legend-item").html('<span class="swatch" style="background:#e7e0d5;"></span>No visible data');
+        const projection = d3.geoIdentity().reflectY(true).fitSize([width, height], muniGeo);
+        const path = d3.geoPath(projection);
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const tooltip = makeTooltip(root);
+
+        svg.selectAll("path")
+          .data(muniGeo.features)
+          .join("path")
+          .attr("d", path)
+          .transition()
+          .duration(250)
+          .attr("fill", d => {
+            const row = byMunicipality.get(normalize(d.properties?.municipal || d.properties?.municipality || ""));
+            return row ? color(metricConfig.get(row)) : "#e7e0d5";
+          })
+          .selection()
+          .attr("stroke", d => {
+            const muni = normalize(d.properties?.municipal || d.properties?.municipality || "");
+            const row = byMunicipality.get(muni);
+            return row && state.selected.has(row.municipality) ? "#111827" : "#f8f4ed";
+          })
+          .attr("stroke-width", d => {
+            const muni = normalize(d.properties?.municipal || d.properties?.municipality || "");
+            const row = byMunicipality.get(muni);
+            return row && state.selected.has(row.municipality) ? 2.4 : 1;
+          })
+          .style("cursor", "pointer")
+          .on("click", (event, d) => {
+            event.stopPropagation();
+            const row = byMunicipality.get(normalize(d.properties?.municipal || d.properties?.municipality || ""));
+            if (!row) return;
+            if (state.selected.has(row.municipality)) state.selected.delete(row.municipality);
+            else state.selected.add(row.municipality);
+            draw();
+          })
+          .on("mouseenter", (event, d) => {
+            const row = byMunicipality.get(normalize(d.properties?.municipal || d.properties?.municipality || ""));
+            if (!row) return;
+            tooltip.style("opacity", 1).html(
+              `<strong>${row.municipality}</strong>` +
+              `${metricConfig.label}: ${metricConfig.fmt(metricConfig.get(row))}<br/>` +
+              `Households under $125k: ${row.under125.toFixed(1)}%<br/>` +
+              `Affordable share: ${fmtPct1(row.affordableShare)}`
+            );
+            positionTooltip(root, tooltip, event);
+          })
+          .on("mousemove", event => positionTooltip(root, tooltip, event))
+          .on("mouseleave", () => tooltip.style("opacity", 0));
+
+        svg.on("click", () => {
+          state.selected.clear();
+          draw();
+        });
+      }
+
+      function renderTimeline(projectRows) {
+        const root = d3.select("#timeline");
+        root.selectAll("*").remove();
+        if (!projectRows.length) {
+          root.append("div").attr("class", "empty").text("Select a municipality or change filters to see yearly production.");
+          return;
+        }
+
+        addHtmlLegend(root, [
+          { color: "#d5b08c", label: "New units by year" },
+          { type: "line", color: "#17316f", label: "Affordable share" }
+        ]);
+
+        const series = d3.range(state.yearStart, state.yearEnd + 1).map(year => {
+          const rows = projectRows.filter(d => d.year === year);
+          const units = d3.sum(rows, d => d.units);
+          const affordableUnits = d3.sum(rows, d => d.affordableUnits);
+          return {
+            year,
+            units,
+            affordableShare: units ? affordableUnits / units : 0
+          };
+        });
+
+        const width = root.node().clientWidth || 520;
+        const height = 340;
+        const margin = { top: 18, right: 46, bottom: 40, left: 50 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleBand().domain(series.map(d => d.year)).range([0, innerW]).padding(0.18);
+        const y = d3.scaleLinear().domain([0, d3.max(series, d => d.units) || 1]).nice().range([innerH, 0]);
+        const y2 = d3.scaleLinear().domain([0, Math.max(0.35, d3.max(series, d => d.affordableShare) || 0)]).nice().range([innerH, 0]);
+
+        g.append("g").attr("transform", `translate(0,${innerH})`)
+          .call(d3.axisBottom(x).tickValues(series.filter((_, i) => i % Math.max(1, Math.ceil(series.length / 7)) === 0).map(d => d.year)));
+        g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d3.format("~s")));
+        g.append("g").attr("transform", `translate(${innerW},0)`).call(d3.axisRight(y2).ticks(4).tickFormat(d3.format(".0%")));
+
+        g.selectAll("rect")
+          .data(series)
+          .join("rect")
+          .attr("x", d => x(d.year))
+          .attr("y", d => y(d.units))
+          .attr("width", x.bandwidth())
+          .attr("height", d => innerH - y(d.units))
+          .attr("fill", "#d5b08c");
+
+        const line = d3.line()
+          .x(d => x(d.year) + x.bandwidth() / 2)
+          .y(d => y2(d.affordableShare));
+        g.append("path")
+          .datum(series)
+          .attr("fill", "none")
+          .attr("stroke", "#17316f")
+          .attr("stroke-width", 2.5)
+          .attr("d", line);
+      }
+
+      function renderComposition(projectRows) {
+        const root = d3.select("#composition");
+        root.selectAll("*").remove();
+        if (!projectRows.length) {
+          root.append("div").attr("class", "empty").text("Change filters to see TOD vs non-TOD composition over time.");
+          return;
+        }
+
+        addHtmlLegend(root, [
+          { color: "var(--accent)", label: "TOD units" },
+          { color: "var(--warning)", label: "Non-TOD units" }
+        ]);
+
+        const series = d3.range(state.yearStart, state.yearEnd + 1).map(year => {
+          const rows = projectRows.filter(d => d.year === year);
+          const todUnits = d3.sum(rows.filter(d => d.hasDistance && d.distance <= state.threshold), d => d.units);
+          const total = d3.sum(rows, d => d.units);
+          return {
+            year,
+            todShare: total ? todUnits / total : 0,
+            nonTodShare: total ? 1 - (todUnits / total) : 0,
+            total
+          };
+        });
+
+        const latest = series.findLast ? series.findLast(d => d.total > 0) : [...series].reverse().find(d => d.total > 0);
+        if (latest) {
+          root.append("div")
+            .attr("class", "chart-note")
+            .style("margin-bottom", "8px")
+            .text(`${latest.year}: ${d3.format(".0%")(latest.todShare)} TOD / ${d3.format(".0%")(latest.nonTodShare)} non-TOD`);
+        }
+
+        const width = root.node().clientWidth || 520;
+        const height = 340;
+        const margin = { top: 18, right: 20, bottom: 40, left: 52 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const x = d3.scaleBand().domain(series.map(d => d.year)).range([0, innerW]).padding(0.16);
+        const y = d3.scaleLinear().domain([0, 1]).range([innerH, 0]);
+
+        g.append("g")
+          .attr("transform", `translate(0,${innerH})`)
+          .call(d3.axisBottom(x).tickValues(series.filter((_, i) => i % Math.max(1, Math.ceil(series.length / 7)) === 0).map(d => d.year)));
+        g.append("g")
+          .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(".0%")));
+
+        const bars = g.selectAll(".composition-year")
+          .data(series)
+          .join("g")
+          .attr("class", "composition-year")
+          .attr("transform", d => `translate(${x(d.year)},0)`);
+
+        bars.append("rect")
+          .attr("x", 0)
+          .attr("y", d => y(d.todShare))
+          .attr("width", x.bandwidth())
+          .attr("height", d => y(0) - y(d.todShare))
+          .attr("fill", "var(--accent)")
+          .attr("rx", 4);
+
+        bars.append("rect")
+          .attr("x", 0)
+          .attr("y", d => y(1))
+          .attr("width", x.bandwidth())
+          .attr("height", d => y(d.todShare) - y(1))
+          .attr("fill", "var(--warning)")
+          .attr("rx", 4);
+      }
+
+      function renderCompare(allRows, active) {
+        const root = d3.select("#compare");
+        root.selectAll("*").remove();
+        const focus = active.length ? active : allRows;
+        if (!focus.length || !allRows.length) {
+          root.append("div").attr("class", "empty").text("No data to compare.");
+          return;
+        }
+
+        const aggregate = rows => {
+          const units = d3.sum(rows, d => d.units);
+          const affordableUnits = d3.sum(rows, d => d.affordableUnits);
+          const todUnits = d3.sum(rows, d => d.todUnits);
+          return {
+            under125: d3.mean(rows, d => d.under125) || 0,
+            high125: d3.mean(rows, d => d.high125) || 0,
+            affordableShare: units ? affordableUnits / units : 0,
+            todShare: units ? todUnits / units : 0
+          };
+        };
+
+        const selectedAgg = aggregate(focus);
+        const overallAgg = aggregate(allRows);
+        const rows = [
+          { label: "Households under $125k", selected: selectedAgg.under125 / 100, overall: overallAgg.under125 / 100, format: d3.format(".0%") },
+          { label: "Households $125k+", selected: selectedAgg.high125 / 100, overall: overallAgg.high125 / 100, format: d3.format(".0%") },
+          { label: "Affordable share", selected: selectedAgg.affordableShare, overall: overallAgg.affordableShare, format: d3.format(".0%") },
+          { label: "TOD share of units", selected: selectedAgg.todShare, overall: overallAgg.todShare, format: d3.format(".0%") }
+        ];
+
+        const width = root.node().clientWidth || 520;
+        const height = 340;
+        const margin = { top: 18, right: 28, bottom: 30, left: 170 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const y = d3.scaleBand().domain(rows.map(d => d.label)).range([0, innerH]).padding(0.24);
+        const x = d3.scaleLinear().domain([0, d3.max(rows, d => Math.max(d.selected, d.overall)) || 1]).nice().range([0, innerW]);
+
+        g.append("g").call(d3.axisLeft(y).tickSize(0));
+        g.append("g").attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.format(".0%")));
+
+        const groups = g.selectAll(".row").data(rows).join("g").attr("transform", d => `translate(0,${y(d.label)})`);
+        groups.append("line")
+          .attr("x1", d => x(d.overall))
+          .attr("x2", d => x(d.selected))
+          .attr("y1", y.bandwidth() / 2)
+          .attr("y2", y.bandwidth() / 2)
+          .attr("stroke", "#b7b0a3")
+          .attr("stroke-width", 2.5);
+        groups.append("circle")
+          .attr("cx", d => x(d.overall))
+          .attr("cy", y.bandwidth() / 2)
+          .attr("r", 6)
+          .attr("fill", "#d5b08c");
+        groups.append("circle")
+          .attr("cx", d => x(d.selected))
+          .attr("cy", y.bandwidth() / 2)
+          .attr("r", 6)
+          .attr("fill", "#17316f");
+        groups.append("text")
+          .attr("x", d => x(d.overall) - 8)
+          .attr("y", y.bandwidth() / 2 + 4)
+          .attr("text-anchor", "end")
+          .attr("fill", "#7a756c")
+          .attr("font-size", 10)
+          .text(d => d.format(d.overall));
+        groups.append("text")
+          .attr("x", d => x(d.selected) + 8)
+          .attr("y", y.bandwidth() / 2 + 4)
+          .attr("text-anchor", "start")
+          .attr("fill", "#17316f")
+          .attr("font-size", 10)
+          .text(d => d.format(d.selected));
+
+        const legend = svg.append("g").attr("transform", `translate(${margin.left},6)`);
+        [
+          { label: "Selected", color: "#17316f" },
+          { label: "All visible", color: "#d5b08c" }
+        ].forEach((item, i) => {
+          const row = legend.append("g").attr("transform", `translate(${i * 120},0)`);
+          row.append("circle").attr("r", 5).attr("cx", 5).attr("cy", 5).attr("fill", item.color);
+          row.append("text").attr("x", 16).attr("y", 9).attr("fill", "#5e6573").attr("font-size", 11).text(item.label);
+        });
+      }
+
+      function renderRankedGrowth(allRows) {
+        const root = d3.select("#ranked-growth");
+        root.selectAll("*").remove();
+        const rows = allRows
+          .filter(d => d.units > 0)
+          .sort((a, b) => d3.descending(a.units, b.units))
+          .slice(0, 8);
+
+        if (!rows.length) {
+          root.append("div").attr("class", "empty").text("No municipal growth to rank in the current window.");
+          return;
+        }
+
+        addRampLegend(root, "Lower affordable share", "Higher affordable share", incomePalette);
+
+        const width = root.node().clientWidth || 720;
+        const height = 340;
+        const margin = { top: 16, right: 54, bottom: 30, left: 128 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const y = d3.scaleBand().domain(rows.map(d => d.municipality)).range([0, innerH]).padding(0.22);
+        const x = d3.scaleLinear().domain([0, d3.max(rows, d => d.units) || 1]).nice().range([0, innerW]);
+
+        g.append("g").call(d3.axisLeft(y).tickSize(0));
+        g.append("g").attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("~s")));
+
+        g.selectAll("rect")
+          .data(rows)
+          .join("rect")
+          .attr("x", 0)
+          .attr("y", d => y(d.municipality))
+          .attr("width", d => x(d.units))
+          .attr("height", y.bandwidth())
+          .attr("rx", 6)
+          .attr("fill", d => affordableColor(d.affordableShare))
+          .attr("stroke", d => d.dominant === "tod" ? "var(--accent)" : "var(--warning)")
+          .attr("stroke-width", 1.6);
+
+        g.selectAll("text.value")
+          .data(rows)
+          .join("text")
+          .attr("class", "value")
+          .attr("x", d => x(d.units) + 8)
+          .attr("y", d => y(d.municipality) + y.bandwidth() / 2 + 4)
+          .attr("fill", "#4b5563")
+          .attr("font-size", 10)
+          .text(d => `${fmtInt(Math.round(d.units))} units`);
+      }
+
+      function renderAffordabilityComposition(projectRows) {
+        const root = d3.select("#affordability-composition");
+        root.selectAll("*").remove();
+        if (!projectRows.length) {
+          root.append("div").attr("class", "empty").text("Change filters to see affordable vs market-rate composition over time.");
+          return;
+        }
+
+        addHtmlLegend(root, [
+          { color: "#17316f", label: "Affordable units" },
+          { color: "#d5b08c", label: "Market-rate units" }
+        ]);
+
+        const series = d3.range(state.yearStart, state.yearEnd + 1).map(year => {
+          const rows = projectRows.filter(d => d.year === year);
+          const total = d3.sum(rows, d => d.units);
+          const affordableUnits = d3.sum(rows, d => d.affordableUnits);
+          return {
+            year,
+            affordableShare: total ? affordableUnits / total : 0,
+            marketShare: total ? 1 - (affordableUnits / total) : 0,
+            total
+          };
+        });
+
+        const latest = series.findLast ? series.findLast(d => d.total > 0) : [...series].reverse().find(d => d.total > 0);
+        if (latest) {
+          root.append("div")
+            .attr("class", "chart-note")
+            .style("margin-bottom", "8px")
+            .text(`${latest.year}: ${d3.format(".0%")(latest.affordableShare)} affordable / ${d3.format(".0%")(latest.marketShare)} market-rate`);
+        }
+
+        const width = root.node().clientWidth || 720;
+        const height = 340;
+        const margin = { top: 18, right: 20, bottom: 40, left: 52 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const x = d3.scaleBand().domain(series.map(d => d.year)).range([0, innerW]).padding(0.16);
+        const y = d3.scaleLinear().domain([0, 1]).range([innerH, 0]);
+
+        g.append("g")
+          .attr("transform", `translate(0,${innerH})`)
+          .call(d3.axisBottom(x).tickValues(series.filter((_, i) => i % Math.max(1, Math.ceil(series.length / 7)) === 0).map(d => d.year)));
+        g.append("g")
+          .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(".0%")));
+
+        const bars = g.selectAll(".afford-year")
+          .data(series)
+          .join("g")
+          .attr("class", "afford-year")
+          .attr("transform", d => `translate(${x(d.year)},0)`);
+
+        bars.append("rect")
+          .attr("x", 0)
+          .attr("y", d => y(d.affordableShare))
+          .attr("width", x.bandwidth())
+          .attr("height", d => y(0) - y(d.affordableShare))
+          .attr("fill", "#17316f")
+          .attr("rx", 4);
+
+        bars.append("rect")
+          .attr("x", 0)
+          .attr("y", d => y(1))
+          .attr("width", x.bandwidth())
+          .attr("height", d => y(d.affordableShare) - y(1))
+          .attr("fill", "#d5b08c")
+          .attr("rx", 4);
+      }
+
+      function renderGrowthCapture(projectRows, domainRows) {
+        const root = d3.select("#growth-capture");
+        root.selectAll("*").remove();
+        if (!projectRows.length || !domainRows.length) {
+          root.append("div").attr("class", "empty").text("Change filters to compare where yearly growth is landing.");
+          return;
+        }
+
+        const vulnerabilityMedian = d3.median(domainRows, d => d.under125) || 0;
+        const highVulnerability = new Set(domainRows.filter(d => d.under125 >= vulnerabilityMedian).map(d => d.municipality));
+        const series = d3.range(state.yearStart, state.yearEnd + 1).map(year => {
+          const rows = projectRows.filter(d => d.year === year);
+          const total = d3.sum(rows, d => d.units);
+          const highUnits = d3.sum(rows.filter(d => highVulnerability.has(d.municipality)), d => d.units);
+          const lowUnits = total - highUnits;
+          return {
+            year,
+            highShare: total ? highUnits / total : 0,
+            lowShare: total ? lowUnits / total : 0,
+            total
+          };
+        });
+
+        const latest = series.findLast ? series.findLast(d => d.total > 0) : [...series].reverse().find(d => d.total > 0);
+        if (latest) {
+          root.append("div")
+            .attr("class", "chart-note")
+            .style("margin-bottom", "8px")
+            .text(`${latest.year}: ${fmtPct(latest.highShare)} of new units landed in higher-vulnerability municipalities, versus ${fmtPct(latest.lowShare)} in lower-vulnerability municipalities.`);
+        }
+
+        addHtmlLegend(root, [
+          { color: "var(--accent)", label: "Higher-vulnerability municipalities" },
+          { color: "var(--blue-5)", label: "Lower-vulnerability municipalities" }
+        ]);
+
+        const width = root.node().clientWidth || 520;
+        const height = 320;
+        const margin = { top: 18, right: 18, bottom: 34, left: 52 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const x = d3.scaleLinear().domain(d3.extent(series, d => d.year)).range([0, innerW]);
+        const y = d3.scaleLinear().domain([0, 1]).range([innerH, 0]);
+
+        g.append("g")
+          .attr("transform", `translate(0,${innerH})`)
+          .call(d3.axisBottom(x).ticks(Math.min(7, series.length)).tickFormat(d3.format("d")));
+        g.append("g")
+          .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(".0%")));
+
+        g.append("line")
+          .attr("x1", 0)
+          .attr("x2", innerW)
+          .attr("y1", y(0.5))
+          .attr("y2", y(0.5))
+          .attr("stroke", "#b7b0a3")
+          .attr("stroke-dasharray", "4 4");
+
+        const area = d3.area()
+          .x(d => x(d.year))
+          .y0(innerH)
+          .y1(d => y(d.highShare));
+        const line = d3.line()
+          .x(d => x(d.year))
+          .y(d => y(d.highShare));
+        const lowLine = d3.line()
+          .x(d => x(d.year))
+          .y(d => y(d.lowShare));
+
+        g.append("path")
+          .datum(series)
+          .attr("fill", "var(--accent-soft)")
+          .attr("fill-opacity", 0.85)
+          .attr("d", area);
+
+        g.append("path")
+          .datum(series)
+          .attr("fill", "none")
+          .attr("stroke", "var(--accent)")
+          .attr("stroke-width", 2.6)
+          .attr("d", line);
+
+        g.append("path")
+          .datum(series)
+          .attr("fill", "none")
+          .attr("stroke", "var(--blue-5)")
+          .attr("stroke-width", 2)
+          .attr("stroke-dasharray", "6 4")
+          .attr("d", lowLine);
+
+        g.append("text")
+          .attr("x", innerW - 4)
+          .attr("y", y(series[series.length - 1].highShare) - 8)
+          .attr("text-anchor", "end")
+          .attr("fill", "var(--accent)")
+          .attr("font-size", 11)
+          .attr("font-weight", 700)
+          .text("Higher vulnerability");
+
+        g.append("text")
+          .attr("x", innerW - 4)
+          .attr("y", y(series[series.length - 1].lowShare) + 14)
+          .attr("text-anchor", "end")
+          .attr("fill", "var(--blue-5)")
+          .attr("font-size", 11)
+          .attr("font-weight", 700)
+          .text("Lower vulnerability");
+      }
+
+      function renderQuadrantSummary(allRows, domainRows) {
+        const root = d3.select("#quadrant-summary");
+        root.selectAll("*").remove();
+        if (!allRows.length || !domainRows.length) {
+          root.append("div").attr("class", "empty").text("Adjust filters to see where municipalities fall in the income-growth story.");
+          return;
+        }
+
+        const vulnerabilityRef = d3.mean(domainRows, d => d.under125) || 0;
+        const growthRef = d3.mean(domainRows, d => d.units) || 0;
+        const buckets = [
+          {
+            label: "High vulnerability + high growth",
+            color: "#0f766e",
+            rows: allRows.filter(d => d.under125 >= vulnerabilityRef && d.units >= growthRef)
+          },
+          {
+            label: "High vulnerability + lower growth",
+            color: "#b7791f",
+            rows: allRows.filter(d => d.under125 >= vulnerabilityRef && d.units < growthRef)
+          },
+          {
+            label: "Lower vulnerability + high growth",
+            color: "#c96b3b",
+            rows: allRows.filter(d => d.under125 < vulnerabilityRef && d.units >= growthRef)
+          },
+          {
+            label: "Lower vulnerability + lower growth",
+            color: "#7c8aa5",
+            rows: allRows.filter(d => d.under125 < vulnerabilityRef && d.units < growthRef)
+          }
+        ].map(d => ({ ...d, count: d.rows.length }));
+
+        root.append("div")
+          .attr("class", "chart-note")
+          .style("margin-bottom", "8px")
+          .text(`Reference lines use the full 1990-2026 municipal baseline: ${fmtPct(vulnerabilityRef)} under $125k and ${fmtInt(Math.round(growthRef))} units.`);
+
+        const width = root.node().clientWidth || 520;
+        const height = 320;
+        const margin = { top: 16, right: 24, bottom: 28, left: 184 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const y = d3.scaleBand().domain(buckets.map(d => d.label)).range([0, innerH]).padding(0.22);
+        const x = d3.scaleLinear().domain([0, d3.max(buckets, d => d.count) || 1]).nice().range([0, innerW]);
+
+        g.append("g").call(d3.axisLeft(y).tickSize(0));
+        g.append("g").attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")));
+
+        g.selectAll("rect")
+          .data(buckets)
+          .join("rect")
+          .attr("x", 0)
+          .attr("y", d => y(d.label))
+          .attr("width", d => x(d.count))
+          .attr("height", y.bandwidth())
+          .attr("rx", 7)
+          .attr("fill", d => d.color)
+          .attr("fill-opacity", 0.9);
+
+        g.selectAll("text.value")
+          .data(buckets)
+          .join("text")
+          .attr("class", "value")
+          .attr("x", d => x(d.count) + 8)
+          .attr("y", d => y(d.label) + y.bandwidth() / 2 + 4)
+          .attr("font-size", 11)
+          .attr("fill", "#4b5563")
+          .text(d => `${d.count} municipalities`);
+      }
+
+      function renderTodAffordability(projectRows) {
+        const root = d3.select("#tod-affordability");
+        root.selectAll("*").remove();
+        if (!projectRows.length) {
+          root.append("div").attr("class", "empty").text("Change filters to compare affordability inside and outside TOD over time.");
+          return;
+        }
+
+        const series = d3.range(state.yearStart, state.yearEnd + 1).map(year => {
+          const rows = projectRows.filter(d => d.year === year);
+          const todRows = rows.filter(d => d.hasDistance && d.distance <= state.threshold);
+          const nonTodRows = rows.filter(d => !d.hasDistance || d.distance > state.threshold);
+          const todUnits = d3.sum(todRows, d => d.units);
+          const nonTodUnits = d3.sum(nonTodRows, d => d.units);
+          return {
+            year,
+            todShare: todUnits ? d3.sum(todRows, d => d.affordableUnits) / todUnits : 0,
+            nonTodShare: nonTodUnits ? d3.sum(nonTodRows, d => d.affordableUnits) / nonTodUnits : 0,
+            total: todUnits + nonTodUnits
+          };
+        });
+
+        const latest = series.findLast ? series.findLast(d => d.total > 0) : [...series].reverse().find(d => d.total > 0);
+        if (latest) {
+          root.append("div")
+            .attr("class", "chart-note")
+            .style("margin-bottom", "8px")
+            .text(`${latest.year}: TOD projects were ${fmtPct(latest.todShare)} affordable vs ${fmtPct(latest.nonTodShare)} outside TOD.`);
+        }
+
+        addHtmlLegend(root, [
+          { color: "var(--accent)", label: "TOD projects" },
+          { color: "var(--warning)", label: "Non-TOD projects" }
+        ]);
+
+        const width = root.node().clientWidth || 520;
+        const height = 320;
+        const margin = { top: 16, right: 16, bottom: 34, left: 52 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const x = d3.scaleLinear().domain(d3.extent(series, d => d.year)).range([0, innerW]);
+        const y = d3.scaleLinear()
+          .domain([0, Math.max(0.4, d3.max(series, d => Math.max(d.todShare, d.nonTodShare)) || 0.4)])
+          .nice()
+          .range([innerH, 0]);
+
+        g.append("g")
+          .attr("transform", `translate(0,${innerH})`)
+          .call(d3.axisBottom(x).ticks(Math.min(7, series.length)).tickFormat(d3.format("d")));
+        g.append("g")
+          .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(".0%")));
+
+        const line = d3.line()
+          .defined(d => Number.isFinite(d.value))
+          .x(d => x(d.year))
+          .y(d => y(d.value));
+
+        [
+          { key: "todShare", color: "var(--accent)", dash: null },
+          { key: "nonTodShare", color: "var(--warning)", dash: "6 4" }
+        ].forEach(seriesDef => {
+          g.append("path")
+            .datum(series.map(d => ({ year: d.year, value: d[seriesDef.key] })))
+            .attr("fill", "none")
+            .attr("stroke", seriesDef.color)
+            .attr("stroke-width", 2.5)
+            .attr("stroke-dasharray", seriesDef.dash)
+            .attr("d", line);
+        });
+
+        g.append("text")
+          .attr("x", 0)
+          .attr("y", -2)
+          .attr("fill", "#5e6573")
+          .attr("font-size", 11)
+          .text("Affordable share of units");
+      }
+
+      function nhgisWeightedMean(values, key) {
+        const valid = values.filter(d => Number.isFinite(d[key]) && Number.isFinite(d.pop_2020) && d.pop_2020 > 0);
+        if (!valid.length) return NaN;
+        const total = d3.sum(valid, d => d.pop_2020);
+        return d3.sum(valid, d => d[key] * d.pop_2020) / total;
+      }
+
+      function permutationPValue(a, b, accessor, iterations = 800) {
+        const aVals = a.map(accessor).filter(Number.isFinite);
+        const bVals = b.map(accessor).filter(Number.isFinite);
+        if (aVals.length < 2 || bVals.length < 2) return NaN;
+
+        const observed = Math.abs(d3.mean(aVals) - d3.mean(bVals));
+        const combined = aVals.concat(bVals);
+        const split = aVals.length;
+        let extreme = 0;
+
+        for (let i = 0; i < iterations; i += 1) {
+          const shuffled = d3.shuffle(combined.slice());
+          const left = shuffled.slice(0, split);
+          const right = shuffled.slice(split);
+          const diff = Math.abs(d3.mean(left) - d3.mean(right));
+          if (diff >= observed) extreme += 1;
+        }
+
+        return (extreme + 1) / (iterations + 1);
+      }
+
+      function significanceStars(pValue) {
+        if (!Number.isFinite(pValue)) return "";
+        if (pValue < 0.001) return "***";
+        if (pValue < 0.01) return "**";
+        if (pValue < 0.05) return "*";
+        return "";
+      }
+
+      function renderNhgisTodBars(selector, rows, metrics) {
+        const root = d3.select(selector);
+        root.selectAll("*").remove();
+        if (!rows || !rows.length) {
+          root.append("div").attr("class", "empty").text("No NHGIS tract data available.");
+          return;
+        }
+        const todRows = rows.filter(d => d.is_tod);
+        const nonTodRows = rows.filter(d => !d.is_tod);
+        const summary = metrics.map(metric => ({
+          label: metric.label,
+          tod: nhgisWeightedMean(todRows, metric.key),
+          nonTod: nhgisWeightedMean(nonTodRows, metric.key),
+          fmt: metric.fmt,
+          diff: nhgisWeightedMean(todRows, metric.key) - nhgisWeightedMean(nonTodRows, metric.key),
+          pValue: permutationPValue(todRows, nonTodRows, d => d[metric.key])
+        }));
+
+        const note = root.append("div")
+          .style("margin-bottom", "10px")
+          .style("font-size", "12px")
+          .style("line-height", "1.45")
+          .style("color", "#5e6573");
+
+        summary.forEach(item => {
+          note.append("div")
+            .text(`${item.label}: TOD tracts are ${item.diff >= 0 ? "higher" : "lower"} by ${item.fmt(Math.abs(item.diff))}.`);
+        });
+        note.append("div")
+          .style("margin-top", "4px")
+          .text("* p < 0.05, ** p < 0.01, *** p < 0.001, n.s. = not significant.");
+
+        const width = root.node().clientWidth || 520;
+        const height = 340;
+        const margin = { top: 24, right: 92, bottom: 44, left: 132 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const y = d3.scaleBand().domain(summary.map(d => d.label)).range([0, innerH]).padding(0.28);
+        const sub = d3.scaleBand().domain(["tod", "nonTod"]).range([0, y.bandwidth()]).padding(0.14);
+        const max = d3.max(summary, d => Math.max(d.tod || 0, d.nonTod || 0)) || 1;
+        const x = d3.scaleLinear().domain([0, max * 1.2]).range([0, innerW]);
+
+        g.append("g").call(d3.axisLeft(y).tickSize(0));
+        g.append("g").attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(5));
+
+        const rowsG = g.selectAll(".metric-row")
+          .data(summary)
+          .join("g")
+          .attr("class", "metric-row")
+          .attr("transform", d => `translate(0,${y(d.label)})`);
+
+        rowsG.selectAll("rect")
+          .data(d => [
+            { key: "tod", value: d.tod, color: "#0f766e", fmt: d.fmt },
+            { key: "nonTod", value: d.nonTod, color: "#c96b3b", fmt: d.fmt }
+          ])
+          .join("rect")
+          .attr("x", x(0))
+          .attr("y", d => sub(d.key))
+          .attr("width", d => Math.max(0, x(d.value) - x(0)))
+          .attr("height", sub.bandwidth())
+          .attr("fill", d => d.color)
+          .attr("rx", 6);
+
+        rowsG.selectAll("text.value")
+          .data(d => [
+            { key: "tod", value: d.tod, fmt: d.fmt, color: "#0f766e" },
+            { key: "nonTod", value: d.nonTod, fmt: d.fmt, color: "#c96b3b" }
+          ])
+          .join("text")
+          .attr("class", "value")
+          .attr("x", d => {
+            const barEnd = x(d.value);
+            const zero = x(0);
+            const barWidth = Math.abs(barEnd - zero);
+            return d.value >= 0 && barWidth > 44 ? barEnd - 8 : barEnd + 8;
+          })
+          .attr("y", d => sub(d.key) + sub.bandwidth() / 2 + 4)
+          .attr("text-anchor", d => {
+            const barEnd = x(d.value);
+            const zero = x(0);
+            const barWidth = Math.abs(barEnd - zero);
+            return d.value >= 0 && barWidth > 44 ? "end" : "start";
+          })
+          .attr("fill", d => {
+            const barEnd = x(d.value);
+            const zero = x(0);
+            const barWidth = Math.abs(barEnd - zero);
+            return d.value >= 0 && barWidth > 44 ? "#fffdf8" : "#4b5563";
+          })
+          .attr("font-size", 10)
+          .text(d => d.fmt(d.value));
+
+        rowsG.each(function(d) {
+          const row = d3.select(this);
+          const stars = significanceStars(d.pValue) || "n.s.";
+          const bracketX = innerW + 22;
+          const y1 = sub("tod") + sub.bandwidth() / 2;
+          const y2 = sub("nonTod") + sub.bandwidth() / 2;
+
+          row.append("line")
+            .attr("x1", bracketX)
+            .attr("x2", bracketX)
+            .attr("y1", y1)
+            .attr("y2", y2)
+            .attr("stroke", "#6b7280")
+            .attr("stroke-width", 1.4);
+          row.append("line")
+            .attr("x1", bracketX - 10)
+            .attr("x2", bracketX)
+            .attr("y1", y1)
+            .attr("y2", y1)
+            .attr("stroke", "#6b7280")
+            .attr("stroke-width", 1.4);
+          row.append("line")
+            .attr("x1", bracketX - 10)
+            .attr("x2", bracketX)
+            .attr("y1", y2)
+            .attr("y2", y2)
+            .attr("stroke", "#6b7280")
+            .attr("stroke-width", 1.4);
+          row.append("text")
+            .attr("x", bracketX + 6)
+            .attr("y", (y1 + y2) / 2 + 4)
+            .attr("fill", "#374151")
+            .attr("font-size", 11)
+            .attr("font-weight", 700)
+            .text(stars);
+        });
+
+        const legend = svg.append("g").attr("transform", `translate(${margin.left},8)`);
+        [
+          { label: "TOD tracts", color: "#0f766e" },
+          { label: "Non-TOD tracts", color: "#c96b3b" }
+        ].forEach((item, i) => {
+          const entry = legend.append("g").attr("transform", `translate(${i * 140},0)`);
+          entry.append("rect").attr("width", 12).attr("height", 12).attr("rx", 3).attr("fill", item.color);
+          entry.append("text").attr("x", 18).attr("y", 10).attr("fill", "#5e6573").attr("font-size", 11).text(item.label);
+        });
+      }
+
+      function renderTractChoropleth(tractGeo, rows) {
+        const root = d3.select("#tract-choropleth");
+        root.selectAll("*").remove();
+        if (!tractGeo?.features?.length || !rows?.length) {
+          root.append("div").attr("class", "empty").text("No tract geometry or NHGIS support data available.");
+          return;
+        }
+
+        const metricConfig = {
+          income: {
+            key: "median_income_change_pct_10_20",
+            label: "Median income change",
+            format: v => `${v.toFixed(1)}%`
+          },
+          education: {
+            key: "bachelors_pct_change_10_20",
+            label: "Bachelor's share change",
+            format: v => `${v.toFixed(1)} pp`
+          },
+          mobility: {
+            key: "avg_travel_time_change_10_20",
+            label: "Travel time change",
+            format: v => `${v.toFixed(1)} min`
+          }
+        }[state.tractMapMetric];
+
+        const valueByGisjoin = new Map(rows.map(d => [d.gisjoin, d[metricConfig.key]]));
+        const todByGisjoin = new Map(rows.map(d => [d.gisjoin, d.is_tod]));
+        const values = rows.map(d => d[metricConfig.key]).filter(Number.isFinite);
+        const maxAbs = Math.max(1, d3.max(values, d => Math.abs(d)) || 1);
+        const color = d3.scaleLinear()
+          .domain([-maxAbs, 0, maxAbs])
+          .range(["#ed8b00", "#fffdf8", "#003da5"]);
+
+        addHtmlLegend(root, [
+          { color: "#ed8b00", label: "Lower / more negative change" },
+          { color: "#fffdf8", label: "Near zero" },
+          { color: "#003da5", label: "Higher / more positive change" },
+          { type: "outline", color: "var(--accent)", fill: "#ffffff", label: "TOD tract outline" }
+        ]);
+
+        const todRows = rows.filter(d => d.is_tod && Number.isFinite(d[metricConfig.key]));
+        const nonTodRows = rows.filter(d => !d.is_tod && Number.isFinite(d[metricConfig.key]));
+        const todMean = d3.mean(todRows, d => d[metricConfig.key]);
+        const nonTodMean = d3.mean(nonTodRows, d => d[metricConfig.key]);
+        root.append("div")
+          .attr("class", "chart-note")
+          .style("margin-bottom", "8px")
+          .text(`TOD tracts average ${metricConfig.format(todMean)} on this measure, compared with ${metricConfig.format(nonTodMean)} in non-TOD tracts.`);
+
+        const width = root.node().clientWidth || 900;
+        const height = 540;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g");
+        const projection = d3.geoMercator().fitSize([width, height], tractGeo);
+        const path = d3.geoPath(projection);
+        const tooltip = makeTooltip(root);
+
+        g.selectAll("path")
+          .data(tractGeo.features)
+          .join("path")
+          .attr("d", path)
+          .attr("fill", d => {
+            const value = valueByGisjoin.get(d.properties?.gisjoin);
+            return Number.isFinite(value) ? color(value) : "#e7e0d5";
+          })
+          .attr("stroke", d => todByGisjoin.get(d.properties?.gisjoin) ? "var(--accent)" : "rgba(60,64,67,0.22)")
+          .attr("stroke-width", d => todByGisjoin.get(d.properties?.gisjoin) ? 0.65 : 0.2)
+          .on("mouseenter", (event, d) => {
+            const value = valueByGisjoin.get(d.properties?.gisjoin);
+            const isTod = todByGisjoin.get(d.properties?.gisjoin);
+            tooltip
+              .style("opacity", 1)
+              .html(
+                `<strong>${d.properties?.gisjoin || "Tract"}</strong><br/>` +
+                `${metricConfig.label}: ${Number.isFinite(value) ? metricConfig.format(value) : "No data"}<br/>` +
+                `${isTod ? "TOD tract" : "Non-TOD tract"}`
+              );
+            positionTooltip(root, tooltip, event);
+          })
+          .on("mousemove", event => positionTooltip(root, tooltip, event))
+          .on("mouseleave", () => tooltip.style("opacity", 0));
+      }
+
+      function renderTractSupport(rows) {
+        renderNhgisTodBars("#tract-education", rows, [
+          { key: "median_income_change_pct_10_20", label: "Median income change", fmt: v => `${v.toFixed(1)}%` },
+          { key: "bachelors_pct_change_10_20", label: "Bachelor's share change", fmt: v => `${v.toFixed(1)} pp` }
+        ]);
+        renderMobilityDistribution("#tract-mobility", rows);
+      }
+
+      function renderMobilityDistribution(selector, rows) {
+        const root = d3.select(selector);
+        root.selectAll("*").remove();
+        const data = rows.filter(d => Number.isFinite(d.avg_travel_time_change_10_20));
+        if (!data.length) {
+          root.append("div").attr("class", "empty").text("No NHGIS travel-time data available.");
+          return;
+        }
+
+        const todRows = data.filter(d => d.is_tod);
+        const nonTodRows = data.filter(d => !d.is_tod);
+        const mobilityDiff = d3.mean(todRows, d => d.avg_travel_time_change_10_20) - d3.mean(nonTodRows, d => d.avg_travel_time_change_10_20);
+        const mobilityPValue = permutationPValue(todRows, nonTodRows, d => d.avg_travel_time_change_10_20);
+
+        root.append("div")
+          .style("margin-bottom", "10px")
+          .style("font-size", "12px")
+          .style("line-height", "1.45")
+          .style("color", "#5e6573")
+          .text(`Average travel time change: TOD tracts are ${mobilityDiff >= 0 ? "higher" : "lower"} by ${Math.abs(mobilityDiff).toFixed(1)} min. Outliers are omitted from the plot for readability.`);
+        root.append("div")
+          .style("margin-bottom", "10px")
+          .style("font-size", "12px")
+          .style("color", "#5e6573")
+          .text("* p < 0.05, ** p < 0.01, *** p < 0.001, n.s. = not significant.");
+        const mobilityLegend = addHtmlLegend(root, [
+          { color: "#0f766e", label: "TOD tracts" },
+          { color: "#c96b3b", label: "Non-TOD tracts" }
+        ]);
+        mobilityLegend.append("span").attr("class", "legend-item").text("Boxes show IQR; points show inlier tracts");
+
+        const width = root.node().clientWidth || 520;
+        const height = 340;
+        const margin = { top: 24, right: 20, bottom: 44, left: 60 };
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+        const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        const groups = [
+          { key: true, label: "TOD tracts", color: "#0f766e" },
+          { key: false, label: "Non-TOD tracts", color: "#c96b3b" }
+        ];
+        const x = d3.scaleBand().domain(groups.map(d => d.label)).range([0, innerW]).padding(0.4);
+        const inlierValues = [];
+        groups.forEach(group => {
+          const subset = data
+            .filter(d => d.is_tod === group.key)
+            .map(d => d.avg_travel_time_change_10_20)
+            .sort(d3.ascending);
+          if (!subset.length) return;
+          const q1 = d3.quantile(subset, 0.25);
+          const q3 = d3.quantile(subset, 0.75);
+          const iqr = q3 - q1;
+          const lowerFence = q1 - 1.5 * iqr;
+          const upperFence = q3 + 1.5 * iqr;
+          subset.forEach(value => {
+            if (value >= lowerFence && value <= upperFence) inlierValues.push(value);
+          });
+        });
+        const visibleExtent = d3.extent(inlierValues.length ? inlierValues : data.map(d => d.avg_travel_time_change_10_20));
+        const pad = Math.max(1, ((visibleExtent[1] ?? 0) - (visibleExtent[0] ?? 0)) * 0.12);
+        const y = d3.scaleLinear()
+          .domain([
+            (visibleExtent[0] ?? -5) - pad,
+            (visibleExtent[1] ?? 5) + pad
+          ])
+          .nice()
+          .range([innerH, 0]);
+
+        g.append("g").attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x));
+        g.append("g").call(d3.axisLeft(y).ticks(6));
+        g.append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -innerH / 2)
+          .attr("y", -42)
+          .attr("text-anchor", "middle")
+          .attr("fill", "#5e6573")
+          .text("Avg travel time change (min)");
+        g.append("line")
+          .attr("x1", 0).attr("x2", innerW)
+          .attr("y1", y(0)).attr("y2", y(0))
+          .attr("stroke", "#b7b0a3")
+          .attr("stroke-dasharray", "4 4");
+
+        groups.forEach(group => {
+          const subset = data.filter(d => d.is_tod === group.key).sort((a, b) => d3.ascending(a.avg_travel_time_change_10_20, b.avg_travel_time_change_10_20));
+          const boxX = x(group.label);
+          const center = boxX + x.bandwidth() / 2;
+          const values = subset.map(d => d.avg_travel_time_change_10_20);
+          const q1 = d3.quantile(values, 0.25);
+          const med = d3.quantile(values, 0.5);
+          const q3 = d3.quantile(values, 0.75);
+          const iqr = q3 - q1;
+          const lowerFence = q1 - 1.5 * iqr;
+          const upperFence = q3 + 1.5 * iqr;
+          const inliers = subset.filter(d => d.avg_travel_time_change_10_20 >= lowerFence && d.avg_travel_time_change_10_20 <= upperFence);
+          const min = d3.min(inliers, d => d.avg_travel_time_change_10_20);
+          const max = d3.max(inliers, d => d.avg_travel_time_change_10_20);
+
+          g.append("line")
+            .attr("x1", center).attr("x2", center)
+            .attr("y1", y(min)).attr("y2", y(max))
+            .attr("stroke", group.color)
+            .attr("stroke-width", 1.5);
+          g.append("rect")
+            .attr("x", boxX)
+            .attr("y", y(q3))
+            .attr("width", x.bandwidth())
+            .attr("height", Math.max(1, y(q1) - y(q3)))
+            .attr("fill", group.color)
+            .attr("fill-opacity", 0.22)
+            .attr("stroke", group.color);
+          g.append("line")
+            .attr("x1", boxX).attr("x2", boxX + x.bandwidth())
+            .attr("y1", y(med)).attr("y2", y(med))
+            .attr("stroke", group.color)
+            .attr("stroke-width", 2);
+
+          const sample = inliers.filter((_, i) => i % Math.max(1, Math.floor(inliers.length / 40)) === 0);
+          g.selectAll(`circle.${group.key ? "tod" : "nontod"}`)
+            .data(sample)
+            .join("circle")
+            .attr("cx", () => center + (Math.random() - 0.5) * x.bandwidth() * 0.5)
+            .attr("cy", d => y(d.avg_travel_time_change_10_20))
+            .attr("r", 2.5)
+            .attr("fill", group.color)
+            .attr("fill-opacity", 0.45);
+        });
+
+        const mobilityStars = significanceStars(mobilityPValue) || "n.s.";
+        const leftCenter = x(groups[0].label) + x.bandwidth() / 2;
+        const rightCenter = x(groups[1].label) + x.bandwidth() / 2;
+        const bracketY = 18;
+        g.append("line")
+          .attr("x1", leftCenter)
+          .attr("x2", leftCenter)
+          .attr("y1", bracketY + 14)
+          .attr("y2", bracketY)
+          .attr("stroke", "#6b7280")
+          .attr("stroke-width", 1.4);
+        g.append("line")
+          .attr("x1", rightCenter)
+          .attr("x2", rightCenter)
+          .attr("y1", bracketY + 14)
+          .attr("y2", bracketY)
+          .attr("stroke", "#6b7280")
+          .attr("stroke-width", 1.4);
+        g.append("line")
+          .attr("x1", leftCenter)
+          .attr("x2", rightCenter)
+          .attr("y1", bracketY)
+          .attr("y2", bracketY)
+          .attr("stroke", "#6b7280")
+          .attr("stroke-width", 1.4);
+        g.append("text")
+          .attr("x", (leftCenter + rightCenter) / 2)
+          .attr("y", bracketY - 4)
+          .attr("text-anchor", "middle")
+          .attr("fill", "#374151")
+          .attr("font-size", 12)
+          .attr("font-weight", 700)
+          .text(mobilityStars);
+      }
+
+      function draw() {
+        const projectRows = projectsForControls(true);
+        const muniRows = municipalityRows(projectRows);
+        const domainRows = municipalityRows(projects, false);
+        const visibleRows = muniRows.filter(d => state.dominanceFilter === "all" || d.dominant === state.dominanceFilter);
+        const active = activeRows(visibleRows);
+        const selectedProjectRows = state.selected.size
+          ? projectRows.filter(d => state.selected.has(d.municipality))
+          : projectRows;
+
+        updateSummary(visibleRows, active, selectedProjectRows);
+        renderScatter(visibleRows, domainRows);
+        renderChoropleth(visibleRows, domainRows);
+        renderTimeline(selectedProjectRows);
+        renderComposition(projectRows);
+        renderRankedGrowth(visibleRows);
+        renderAffordabilityComposition(projectRows);
+        renderGrowthCapture(projectRows, domainRows);
+        renderTractChoropleth(tractGeo, nhgisSupportRows);
+        renderTractSupport(nhgisSupportRows);
+        renderTractTakeaway(nhgisSupportRows);
+      }
+
+      syncYearUI();
+      draw();
+    }).catch(err => {
+      document.body.innerHTML = `<div style="padding:24px;font-family:sans-serif">Failed to load data.<br/><br/>${String(err)}</div>`;
+      console.error(err);
+    });
+  </script>
+</body>
+</html>

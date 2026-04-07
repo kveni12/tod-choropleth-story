@@ -1,8 +1,7 @@
 {
-  "name": "tod-choropleth-story",
+  "name": "fp1-demographics",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -17,5 +16,6 @@
   },
   "dependencies": {
     "d3": "^7.9.0"
-  }
+  },
+  "type": "module"
 }

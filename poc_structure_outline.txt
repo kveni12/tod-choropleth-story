@@ -1,0 +1,27 @@
+
+Thesis: As Massachusetts works to encourage TOD, policymakers should be aware that this development can cause displacement, gentrification, and other demographic changes. In order to minimize these effects, TOD projects must include a substantial # of affordable housing units.
+
+How much TOD is actually happening? ("Too much of the growth still lands outside TOD")
+Where is it happening? ("Pressure is concentrating in a small set of municipalities")
+Most of it is not affordable, especially in the last few years ("Most new housing is still market-rate", "When production rises, affordability often lags")
+Development of market-rate housing can cause displacement pressure, gentrification (just an explanation)
+Moreover, development is concentrated more in higher-vulnerability municipalities than lower-vulnerability ones ("Higher-vulnerability municipalities do not consistently capture growth" and "The map shows where vulnerability and growth overlap")
+
+So, what effect does TOD have on demographics?
+Some notes on data filtering: Development, transit-oriented or otherwise, often results in demographic change. In order to isolate the influence of TOD from the influence of development generally, we filter out all census tracts with minimal development (less than 2% increase in housing stock)
+    since these are likely to show different demographic changes than high development tracts. Amongst these high-development tracts, we compare primarily TOD tracts with primarily non-TOD tracts.
+[show map of tracts colored by minimal development, TOD-dominated, and non-TOD dominated, with a toggle to show developments exactly like in the tract dashboard map]
+Income: We can get a sense of the socioeconomic distribution of people by looking at the median income of a neighborhood. In census tracts dominated by TOD, the median income [increases] by [45.5%], while in non-TOD dominated tracts, the median income [increases]
+    by [28.8%], and in minimal development tracts, [fill this in]. This likely indicates that areas with significant TOD see a larger influx of higher-income residents, which is usually tied to gentrification.
+[show TOD analysis scatter plot from tract dashboard]
+    This plot shows that, not only does TOD = greater income jumps than non-TOD, but *more* TOD development pushes incomes up faster than *more* non-TOD development
+Education: Another indicator of socioeconomic distribution(?) is the percentage of people who are college-educated. [same thing as income, same analysis]
+just ignore mobility outcomes for now
+
+How increased affordability can help:
+[Text to compare median income change for TOD tracts with affordable units making up >50% of TOD development vs. <50% of development, as in policy insights]
+[Same for education]
+Note that median incomes and education levels go up less in more affordable tracts.
+
+Bottom line: Similar to main page, but with two rows: one for TOD vs non TOD, one for affordable vs not affordable. Compare/summarize the changes as in the analysis above.
+Conclusion: TOD is associated with gentrification, but these effects can be mitigated by increasing the share of TOD units that are affordable

@@ -18,7 +18,7 @@
 		transitDistanceMiToMetres,
 		transitModeUiLabel
 	} from '$lib/utils/derived.js';
-	import { periodCensusBounds, periodDisplayLabel } from '$lib/utils/periods.js';
+	import { periodCensusBounds } from '$lib/utils/periods.js';
 	import {
 		MBTA_BLUE,
 		MBTA_GREEN,
@@ -28,7 +28,7 @@
 	} from '$lib/utils/mbtaColors.js';
 
 	/**
-	 * Tract-dashboard–style map: census net housing-unit change choropleth (period from panel), TOD-tier
+	 * Tract-dashboard–style map: census % housing change choropleth (2010–20), TOD-tier
 	 * outlines, optional MassBuilds developments and MBTA overlays.
 	 *
 	 * Parameters
@@ -38,7 +38,7 @@
 	 * tractList : Array<object>
 	 *     Filtered census tract rows (same universe as ``nhgisRows``).
 	 * nhgisRows : Array<object>
-	 *     Rows from ``buildNhgisLikeRows`` including ``gisjoin``, ``devClass``, ``census_hu_change``.
+	 *     Rows from ``buildNhgisLikeRows`` including ``gisjoin``, ``devClass``, ``census_hu_change_10_20``.
 	 * metricsDevelopments : Array<object> | null | undefined
 	 *     Optional MassBuilds rows for TOD / stock tooltips — use the same window as ``buildTractDevClassMap``
 	 *     (e.g. 1990–2026 on the main POC). When omitted, uses ``buildFilteredData`` (panel period only).
@@ -46,19 +46,7 @@
 	let { panelState, tractList, nhgisRows, metricsDevelopments = null } = $props();
 
 	let containerEl = $state(null);
-	let stepEls = $state([]);
-	let tooltip = $state({
-		visible: false,
-		x: 0,
-		y: 0,
-		eyebrow: '',
-		title: '',
-		badge: '',
-		badgeTone: '',
-		primaryRows: [],
-		secondaryRows: []
-	});
-	let revealStage = $state(0);
+	let tooltip = $state({ visible: false, x: 0, y: 0, lines: [] });
 
 	/** Nice unit ticks + pixel radii for HTML dot-size legend (same sqrt scale as map dots). */
 	let devSizeLegendTicks = $state(/** @type {{ units: number; rPx: number }[] | null} */ (null));
@@ -71,56 +59,6 @@
 	/** Lighter grey for minimal-development tract outline (half stroke vs TOD tiers); legend ring matches. */
 	const MINIMAL_TRACT_STROKE = '#94a3b8';
 
-	function devClassStroke(row) {
-		const dc = row?.devClass;
-		if (dc === 'tod_dominated') return 'var(--accent, #0d9488)';
-		if (dc === 'nontod_dominated') return 'var(--warning, #ea580c)';
-		if (dc === 'minimal') return MINIMAL_TRACT_STROKE;
-		return 'rgba(60,64,67,0.22)';
-	}
-
-	function tintFill(baseFill, row) {
-		if (revealStage < 1) return baseFill;
-		const dc = row?.devClass;
-		if (!dc) return baseFill;
-		const accent =
-			dc === 'tod_dominated'
-				? 'var(--accent, #0d9488)'
-				: dc === 'nontod_dominated'
-					? 'var(--warning, #ea580c)'
-					: MINIMAL_TRACT_STROKE;
-		return d3.interpolateRgb(baseFill, accent)(dc === 'minimal' ? 0.1 : 0.17);
-	}
-
-	const stepContent = [
-		{
-			kicker: 'Step 1',
-			title: 'Start with the choropleth',
-			body: 'Focus first on tract color alone. Blue tracts added more housing units over the period; red tracts grew less or lost units.'
-		},
-		{
-			kicker: 'Step 2',
-			title: 'Add the tract categories',
-			body: 'Then add the outline colors and the slight interior tint: green for TOD-dominated, orange for non-TOD-dominated, and gray for minimal-development tracts.'
-		},
-		{
-			kicker: 'Step 3',
-			title: 'Add the projects',
-			body: 'Finally, bring in the MassBuilds developments to see how individual projects cluster within those tract patterns.'
-		}
-	];
-
-	function stepRef(node, index) {
-		stepEls[index] = node;
-		stepEls = [...stepEls];
-		return {
-			destroy() {
-				stepEls[index] = null;
-				stepEls = [...stepEls];
-			}
-		};
-	}
-
 	/**
 	 * Z-order rank for tract polygons (later in DOM = drawn on top at shared edges).
 	 * Excluded (tan / no reliable % change) → minimal → non-TOD → TOD.
@@ -128,7 +66,7 @@
 	 * Parameters
 	 * ----------
 	 * row : object | undefined
-	 *     Row with ``census_hu_change`` and optional ``devClass``.
+	 *     Row with ``census_hu_change_10_20`` and optional ``devClass``.
 	 *
 	 * Returns
 	 * -------
@@ -137,7 +75,7 @@
 	 */
 	function tractTierRankFromRow(row) {
 		if (!row) return 0;
-		const v = Number(row.census_hu_change);
+		const v = Number(row.census_hu_change_10_20);
 		if (!Number.isFinite(v)) return 0;
 		const dc = row.devClass;
 		if (dc === 'tod_dominated') return 3;
@@ -171,7 +109,6 @@
 	const mapH = 480;
 
 	let svgRef = $state(null);
-	let zoomBehaviorRef = $state(null);
 	let projectionRef = $state(null);
 	let lastStructuralKey = $state('');
 
@@ -224,14 +161,6 @@
 		if (m.includes('rail')) return '#3b82f6';
 		if (m.includes('bus')) return '#f97316';
 		return '#888';
-	}
-
-	function recenterMap() {
-		if (!svgRef || !zoomBehaviorRef) return;
-		svgRef
-			.transition()
-			.duration(350)
-			.call(zoomBehaviorRef.transform, d3.zoomIdentity);
 	}
 
 	function stopRadius(stop) {
@@ -359,7 +288,8 @@
 		const cw = containerEl.clientWidth || 900;
 		mapW = Math.max(400, Math.min(1100, cw - CHORO_LEGEND_COL_W - DEV_LEGEND_COL_W - 16));
 
-		mapCanvasLeft = 0;
+		const showDevs = panelState.showDevelopments;
+		mapCanvasLeft = showDevs ? DEV_LEGEND_COL_W : 0;
 		const svgW = mapCanvasLeft + mapW + CHORO_LEGEND_COL_W;
 		const svgH = mapH;
 
@@ -473,7 +403,6 @@
 						return (d?.strokeWBase ?? 0.3) * invK;
 					});
 			});
-		zoomBehaviorRef = zoom;
 
 		svg.call(zoom).on('dblclick.zoom', null).style('touch-action', 'none');
 
@@ -487,7 +416,7 @@
 
 		const rowByGj = new Map((nhgisRows ?? []).map((r) => [r.gisjoin, r]));
 		const values = (nhgisRows ?? [])
-			.map((r) => Number(r.census_hu_change))
+			.map((r) => Number(r.census_hu_change_10_20))
 			.filter(Number.isFinite);
 		const maxAbs = Math.max(1, d3.max(values, (d) => Math.abs(d)) || 1);
 		const color = d3
@@ -497,28 +426,27 @@
 
 		d3.select(containerEl)
 			.selectAll('path.tract-poly')
-			.transition()
-			.duration(350)
 			.attr('fill', (d) => {
 				const id = d.properties?.gisjoin;
 				const row = rowByGj.get(id);
-				const v = row ? Number(row.census_hu_change) : NaN;
-				const baseFill = Number.isFinite(v) ? color(v) : '#e7e0d5';
-				return tintFill(baseFill, row);
+				const v = row ? Number(row.census_hu_change_10_20) : NaN;
+				return Number.isFinite(v) ? color(v) : '#e7e0d5';
 			})
 			.attr('stroke', (d) => {
 				const id = d.properties?.gisjoin;
 				const row = rowByGj.get(id);
-				if (revealStage < 1) return 'rgba(60,64,67,0.18)';
-				return devClassStroke(row);
+				const dc = row?.devClass;
+				if (dc === 'tod_dominated') return 'var(--accent, #0d9488)';
+				if (dc === 'nontod_dominated') return 'var(--warning, #ea580c)';
+				if (dc === 'minimal') return MINIMAL_TRACT_STROKE;
+				return 'rgba(60,64,67,0.22)';
 			})
 			.attr('stroke-width', (d) => {
 				const id = d.properties?.gisjoin;
 				const row = rowByGj.get(id);
 				const dc = row?.devClass;
-				if (revealStage < 1) return 0.45;
 				if (!dc) return 0.5;
-				return dc === 'minimal' ? 1.15 : 2.4;
+				return dc === 'minimal' ? 0.75 : 1.5;
 			});
 
 		const svg = svgRef;
@@ -580,7 +508,7 @@
 				d3
 					.axisLeft(yScale)
 					.ticks(5)
-					.tickFormat((v) => fmtTick(v))
+					.tickFormat((v) => `${fmtTick(v)}%`)
 					.tickSize(3)
 			)
 			.call((g) => g.selectAll('path,line').attr('stroke', 'var(--border)'))
@@ -593,7 +521,7 @@
 			.attr('fill', 'var(--text-muted)')
 			.attr('font-size', '7.5px')
 			.attr('font-weight', 600)
-			.text(`Net housing units (${periodDisplayLabel(panelState.timePeriod)})`);
+			.text('Housing change (%, 2010–20)');
 
 		containerEl.__pocChoroMaxAbs = maxAbs;
 		containerEl.__pocRowByGj = rowByGj;
@@ -608,15 +536,10 @@
 		devLeg.selectAll('*').remove();
 
 		const devLayer = d3.select(containerEl).select('.dev-dots-layer');
-		const t = d3.transition().duration(350);
+		devLayer.selectAll('*').remove();
 
-		if (revealStage < 2) {
+		if (!panelState.showDevelopments) {
 			devSizeLegendTicks = null;
-			devLayer
-				.selectAll('circle.dev-dot')
-				.transition(t)
-				.attr('opacity', 0)
-				.style('pointer-events', 'none');
 			return;
 		}
 
@@ -638,6 +561,48 @@
 
 		const mfColor = d3.scaleSequential((t) => interpolateOrangeGreen(t)).domain([0, 1]).clamp(true);
 
+		const y0mf = 10;
+		const legBarHmf = Math.max(120, mapH - y0mf - 14);
+		const legBarWmf = 10;
+		const mfBarLeft = 0;
+		const mfBarRight = mfBarLeft + legBarWmf;
+		const gradMfId = `poc-dev-mf-grad-${mapUid}`;
+		svg.select('defs').selectAll(`#${gradMfId}`).remove();
+		const gradMf = svg.select('defs').append('linearGradient').attr('id', gradMfId)
+			.attr('x1', '0%').attr('y1', '100%').attr('x2', '0%').attr('y2', '0%');
+		for (let i = 0; i <= 48; i++) {
+			const t = i / 48;
+			gradMf.append('stop').attr('offset', `${t * 100}%`).attr('stop-color', interpolateOrangeGreen(t));
+		}
+		const mfLegG = devLeg.append('g').attr('class', 'map-dev-legend-inner').attr('transform', 'translate(6,0)');
+		mfLegG
+			.append('rect')
+			.attr('x', mfBarLeft)
+			.attr('y', y0mf)
+			.attr('width', legBarWmf)
+			.attr('height', legBarHmf)
+			.attr('rx', 2)
+			.attr('fill', `url(#${gradMfId})`)
+			.attr('stroke', 'var(--border)')
+			.attr('stroke-width', 0.5);
+		const yMf = d3.scaleLinear().domain([0, 1]).range([y0mf + legBarHmf, y0mf]);
+		mfLegG
+			.append('g')
+			.attr('transform', `translate(${mfBarRight + 5},0)`)
+			.call(d3.axisRight(yMf).ticks(4).tickFormat(d3.format('.0%')).tickSize(3))
+			.call((g) => g.selectAll('path,line').attr('stroke', 'var(--border)'))
+			.call((g) =>
+				g.selectAll('text').attr('fill', 'var(--text-muted)').attr('font-size', '8px')
+			);
+		mfLegG
+			.append('text')
+			.attr('transform', `translate(11.5, ${y0mf + legBarHmf * 0.5}) rotate(-90)`)
+			.attr('text-anchor', 'middle')
+			.attr('fill', 'var(--text-muted)')
+			.attr('font-size', '7.5px')
+			.attr('font-weight', 600)
+			.text('MF share (dot fill)');
+
 		const glyphData = filteredDevs.map((d) => {
 			const hu = Number(d.hu) || 0;
 			const mf = developmentMultifamilyShare(d);
@@ -656,33 +621,8 @@
 		devLayer
 			.selectAll('circle.dev-dot')
 			.data(glyphData, (d, i) => `${d.gisjoin}-${d.lat}-${d.lon}-${i}`)
-			.join(
-				(enter) =>
-					enter
-						.append('circle')
-						.attr('class', 'dev-dot')
-						.attr('cx', (d) => projection([d.lon, d.lat])?.[0] ?? -9999)
-						.attr('cy', (d) => projection([d.lon, d.lat])?.[1] ?? -9999)
-						.attr('r', (d) => d.rBase * invK)
-						.attr('fill', (d) =>
-							d.mfShare == null || !Number.isFinite(d.mfShare) ? '#475569' : mfColor(d.mfShare)
-						)
-						.attr('fill-opacity', 0.78)
-						.attr('stroke', (d) => (d.transitAccessible ? '#ffffff' : 'rgba(15, 23, 42, 0.55)'))
-						.attr('stroke-width', (d) => d.strokeWBase * invK)
-						.attr('opacity', 0)
-						.style('cursor', 'pointer')
-						.style('pointer-events', 'none')
-						.call((sel) =>
-							sel
-								.on('mouseenter', handleDevEnter)
-								.on('mousemove', handleMouseMove)
-								.on('mouseleave', handleOverlayLeave)
-						),
-				(update) => update,
-				(exit) => exit.transition(t).attr('opacity', 0).remove()
-			)
-			.transition(t)
+			.join('circle')
+			.attr('class', 'dev-dot')
 			.attr('cx', (d) => projection([d.lon, d.lat])?.[0] ?? -9999)
 			.attr('cy', (d) => projection([d.lon, d.lat])?.[1] ?? -9999)
 			.attr('r', (d) => d.rBase * invK)
@@ -692,9 +632,10 @@
 			.attr('fill-opacity', 0.78)
 			.attr('stroke', (d) => (d.transitAccessible ? '#ffffff' : 'rgba(15, 23, 42, 0.55)'))
 			.attr('stroke-width', (d) => d.strokeWBase * invK)
-			.attr('opacity', 1)
-			.selection()
-			.style('pointer-events', 'auto');
+			.style('cursor', 'pointer')
+			.on('mouseenter', handleDevEnter)
+			.on('mousemove', handleMouseMove)
+			.on('mouseleave', handleOverlayLeave);
 	}
 
 	function updateOverlays() {
@@ -737,18 +678,20 @@
 				if (id === hoveredId) return '#ffffff';
 				if (selectedSet.has(id)) return 'var(--cat-a, #6366f1)';
 				const row = rowByGj?.get(id);
-				if (revealStage < 1) return 'rgba(60,64,67,0.18)';
-				return devClassStroke(row);
+				const dc = row?.devClass;
+				if (dc === 'tod_dominated') return 'var(--accent, #0d9488)';
+				if (dc === 'nontod_dominated') return 'var(--warning, #ea580c)';
+				if (dc === 'minimal') return MINIMAL_TRACT_STROKE;
+				return 'rgba(60,64,67,0.22)';
 			})
 			.attr('stroke-width', (d) => {
 				const id = d.properties?.gisjoin;
 				const row = rowByGj?.get(id);
 				const dc = row?.devClass;
-				if (id === hoveredId) return dc === 'minimal' ? 2 : 3.6;
-				if (selectedSet.has(id)) return dc === 'minimal' ? 1.7 : 3;
-				if (revealStage < 1) return 0.45;
+				if (id === hoveredId) return dc === 'minimal' ? 1.6 : 3.2;
+				if (selectedSet.has(id)) return dc === 'minimal' ? 1.4 : 2.8;
 				if (!dc) return 0.5;
-				return dc === 'minimal' ? 1.15 : 2.4;
+				return dc === 'minimal' ? 0.75 : 1.5;
 			});
 	}
 
@@ -765,10 +708,15 @@
 		const tractLookup = buildTractLookup();
 		const t = tractLookup.get(id);
 		const county = t?.county;
-		const tractPlace = county && String(county) !== 'County Name' ? String(county) : String(id);
+		const title = county && String(county) !== 'County Name' ? String(county) : String(id);
 
-		const huNet = row ? Number(row.census_hu_change) : NaN;
-		const pl = periodDisplayLabel(panelState.timePeriod);
+		const lines = [{ bold: true, text: title }];
+
+		const huPct = row ? Number(row.census_hu_change_10_20) : NaN;
+		lines.push({
+			bold: false,
+			text: `Census housing change (2010–20): ${Number.isFinite(huPct) ? `${fmt1(huPct)}%` : '—'}`
+		});
 
 		const tier =
 			row?.devClass === 'tod_dominated'
@@ -778,80 +726,65 @@
 					: row?.devClass === 'minimal'
 						? 'Minimal development'
 						: 'Unclassified';
-		const badgeTone =
-			row?.devClass === 'tod_dominated'
-				? 'tod'
-				: row?.devClass === 'nontod_dominated'
-					? 'nontod'
-					: row?.devClass === 'minimal'
-						? 'minimal'
-						: 'neutral';
-		const primaryRows = [
-			{
-				label: `Census net housing units (${pl})`,
-				value: Number.isFinite(huNet) ? fmtInt(huNet) : '—'
-			}
-		];
-		const secondaryRows = [];
+		lines.push({ bold: false, text: `Cohort (MassBuilds rules): ${tier}` });
 
 		if (t) {
 			const tp = panelState.timePeriod;
 			const { startY, endY } = periodCensusBounds(tp);
 
 			const pop = t[`pop_${endY}`] ?? t.pop_2020;
-			if (pop != null) secondaryRows.push({ label: `Population (${endY})`, value: fmtInt(pop) });
+			if (pop != null) lines.push({ bold: false, text: `Population (${endY}): ${fmtInt(pop)}` });
 
 			const huS = t[`total_hu_${startY}`];
 			const huE = t[`total_hu_${endY}`];
-			if (huS != null) secondaryRows.push({ label: `Housing units (${startY})`, value: fmtInt(huS) });
-			if (huE != null) secondaryRows.push({ label: `Housing units (${endY})`, value: fmtInt(huE) });
+			if (huS != null) lines.push({ bold: false, text: `Housing units (${startY}): ${fmtInt(huS)}` });
+			if (huE != null) lines.push({ bold: false, text: `Housing units (${endY}): ${fmtInt(huE)}` });
 			if (huS != null && huE != null) {
 				const diff = huE - huS;
 				const sign = diff >= 0 ? '+' : '';
-				secondaryRows.push({ label: 'Net HU change (census)', value: `${sign}${fmtInt(diff)}` });
+				lines.push({ bold: false, text: `Net HU change (census): ${sign}${fmtInt(diff)}` });
 			}
 
 			const m = tractTodMetricsMap?.get(id);
 			if (m && Number.isFinite(m.totalNewUnits) && m.totalNewUnits > 0) {
-				primaryRows.push({
-					label: 'New units (MassBuilds)',
-					value: fmtInt(m.totalNewUnits)
+				lines.push({
+					bold: false,
+					text: `New units (MassBuilds, same window as cohort outlines): ${fmtInt(m.totalNewUnits)}`
 				});
 			}
 			if (m?.todFraction != null && Number.isFinite(m.todFraction)) {
-				primaryRows.push({ label: 'TOD share of new dev units', value: `${fmt1(m.todFraction * 100)}%` });
+				lines.push({
+					bold: false,
+					text: `TOD share of new dev units: ${fmt1(m.todFraction * 100)}%`
+				});
 			}
 			if (m?.pctStockIncrease != null && Number.isFinite(m.pctStockIncrease)) {
-				primaryRows.push({ label: 'Stock increase', value: `${fmt1(m.pctStockIncrease)}%` });
+				lines.push({
+					bold: false,
+					text: `Stock increase (MassBuilds / base HU): ${fmt1(m.pctStockIncrease)}%`
+				});
 			}
 
 			const agg = devAggMap?.get(id);
 			if (agg?.new_units) {
-				secondaryRows.push({ label: 'Filtered new units (sum)', value: fmtInt(agg.new_units) });
+				lines.push({
+					bold: false,
+					text: `Filtered new units (sum): ${fmtInt(agg.new_units)}`
+				});
 			}
 
 			const stopsRaw = Number(t.transit_stops) || 0;
-			secondaryRows.push({ label: 'MBTA stops (tract + buffer)', value: String(stopsRaw) });
+			lines.push({ bold: false, text: `MBTA stops (tract + buffer): ${stopsRaw}` });
 
-			const medInc = t[`median_income_change_pct_${tp}`];
+			const medInc = t.median_income_change_pct_10_20;
 			if (medInc != null && Number.isFinite(medInc)) {
-				primaryRows.push({ label: `Median income change (${periodDisplayLabel(tp)})`, value: `${fmt1(medInc)}%` });
+				lines.push({ bold: false, text: `Median income change (2010–20): ${fmt1(medInc)}%` });
 			}
 		} else {
-			secondaryRows.push({ label: 'Tract data', value: 'No tract attributes loaded' });
+			lines.push({ bold: false, text: 'No tract attributes loaded for this polygon.' });
 		}
 
-		tooltip = {
-			visible: true,
-			x: event.clientX,
-			y: event.clientY,
-			eyebrow: 'Census tract',
-			title: county && String(county) !== 'County Name' ? `Tract in ${tractPlace}` : `Tract: ${tractPlace}`,
-			badge: tier,
-			badgeTone,
-			primaryRows,
-			secondaryRows
-		};
+		tooltip = { visible: true, x: event.clientX, y: event.clientY, lines };
 	}
 
 	function handleMouseMove(event) {
@@ -876,15 +809,11 @@
 			visible: true,
 			x: event.clientX,
 			y: event.clientY,
-			eyebrow: 'Transit stop',
-			title: d.name || 'MBTA Stop',
-			badge: 'Transit stop',
-			badgeTone: 'neutral',
-			primaryRows: [
-				{ label: 'Routes', value: routes },
-				{ label: 'Mode', value: modes }
-			],
-			secondaryRows: []
+			lines: [
+				{ bold: true, text: d.name || 'MBTA Stop' },
+				{ bold: false, text: `Routes: ${routes}` },
+				{ bold: false, text: `Mode: ${modes}` }
+			]
 		};
 	}
 
@@ -895,27 +824,21 @@
 			visible: true,
 			x: event.clientX,
 			y: event.clientY,
-			eyebrow: 'Transit line',
-			title: name,
-			badge: 'MBTA line',
-			badgeTone: 'neutral',
-			primaryRows: [
-				{ label: 'Route', value: props.route_short_name || props.route_id || '—' }
-			],
-			secondaryRows: []
+			lines: [
+				{ bold: true, text: name },
+				{ bold: false, text: `Route: ${props.route_short_name || props.route_id || ''}` }
+			]
 		};
 	}
 
 	function handleDevEnter(event, d) {
 		const fmtPct = d3.format('.1f');
-		const primaryRows = [
-			{ label: 'Municipality', value: d.municipal || '—' },
-			{ label: 'Units', value: String(d.hu ?? '—') }
-		];
-		const secondaryRows = [];
+		const lines = [{ bold: true, text: d.name || 'Development' }];
+		lines.push({ bold: false, text: `${d.municipal}` });
+		lines.push({ bold: false, text: `Units: ${d.hu}` });
 		const mf = developmentMultifamilyShare(d);
 		if (mf != null && Number.isFinite(mf)) {
-			primaryRows.push({ label: 'Multifamily share', value: `${fmtPct(mf * 100)}%` });
+			lines.push({ bold: false, text: `Multifamily (share): ${fmtPct(mf * 100)}%` });
 		}
 		const transitM = transitDistanceMiToMetres(panelState.transitDistanceMi ?? 0.5);
 		const todMi = panelState.transitDistanceMi ?? 0.5;
@@ -925,36 +848,28 @@
 		const nearestM = prox.nearestDistM;
 		const nWithin = prox.stopsWithinRadius;
 		if (nearestM != null && Number.isFinite(nearestM)) {
-			secondaryRows.push({
-				label: 'Nearest stop',
-				value: `${nearestM.toFixed(0)} m${access ? ' (within TOD radius)' : ''}`
+			lines.push({
+				bold: false,
+				text: `Nearest stop: ${nearestM.toFixed(0)} m${access ? ' (within TOD radius)' : ''}`
 			});
 		} else {
-			secondaryRows.push({ label: 'Nearest stop', value: '—' });
+			lines.push({ bold: false, text: 'Nearest stop: —' });
 		}
-		secondaryRows.push({ label: `Stops within ${todMi} mi`, value: String(nWithin) });
+		lines.push({
+			bold: false,
+			text: `Stops within ${todMi} mi: ${nWithin}`
+		});
 		const affCap = developmentAffordableUnitsCapped(d);
 		if (affCap > 0) {
 			const src = d.affrd_source === 'lihtc' ? ' (HUD LIHTC)' : '';
-			primaryRows.push({ label: 'Affordable units', value: `${affCap}${src}` });
+			lines.push({ bold: false, text: `Affordable: ${affCap}${src}` });
 		}
-		secondaryRows.push({ label: 'Type', value: d.mixed_use ? 'Mixed-use' : 'Residential' });
-		if (d.rdv) secondaryRows.push({ label: 'Redevelopment', value: 'Yes' });
-		tooltip = {
-			visible: true,
-			x: event.clientX,
-			y: event.clientY,
-			eyebrow: 'MassBuilds project',
-			title: `Development: ${d.name || 'Unnamed project'}`,
-			badge: access ? 'Transit-accessible' : 'Not transit-accessible',
-			badgeTone: access ? 'tod' : 'minimal',
-			primaryRows,
-			secondaryRows
-		};
+		lines.push({ bold: false, text: d.mixed_use ? 'Mixed-use' : 'Residential' });
+		if (d.rdv) lines.push({ bold: false, text: 'Redevelopment' });
+		tooltip = { visible: true, x: event.clientX, y: event.clientY, lines };
 	}
 
 	function handleOverlayLeave() {
-		panelState.setHovered(null);
 		tooltip = { ...tooltip, visible: false };
 	}
 
@@ -985,7 +900,6 @@
 
 	$effect(() => {
 		void dataKey;
-		void revealStage;
 		if (!containerEl || !svgRef) return;
 		updateChoropleth();
 		updateDevelopments();
@@ -1006,29 +920,6 @@
 		updateSelection();
 	});
 
-	$effect(() => {
-		if (stepEls.filter(Boolean).length !== stepContent.length) return;
-		const observer = new IntersectionObserver(
-			(entries) => {
-				const visible = entries
-					.filter((entry) => entry.isIntersecting)
-					.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-				if (!visible.length) return;
-				const next = Number(visible[0].target.getAttribute('data-step-index'));
-				if (Number.isFinite(next)) revealStage = next;
-			},
-			{
-				root: null,
-				threshold: [0.35, 0.6, 0.85],
-				rootMargin: '-10% 0px -30% 0px'
-			}
-		);
-		for (const el of stepEls) {
-			if (el) observer.observe(el);
-		}
-		return () => observer.disconnect();
-	});
-
 	onDestroy(() => {
 		if (containerEl) d3.select(containerEl).selectAll('*').remove();
 		lastStructuralKey = '';
@@ -1038,204 +929,139 @@
 </script>
 
 <div class="poc-nhgis-map">
-	<div class="poc-scrolly">
-		<div class="poc-scrolly-map">
-			<div class="poc-legend-row">
-				<fieldset class="poc-transit-field">
-					<legend class="poc-transit-legend">MBTA Overlays</legend>
-					<div class="poc-transit-compact" role="group" aria-label="Transit overlays">
-						<div class="poc-t-row">
-							<span class="poc-t-h"></span>
-							<span class="poc-t-h">Lines</span>
-							<span class="poc-t-h">Stops</span>
-						</div>
-						<div class="poc-t-row">
-							<span class="poc-t-l">Bus</span>
-							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusLines} /></label>
-							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusStops} /></label>
-						</div>
-						<div class="poc-t-row">
-							<span class="poc-t-l">Rapid Transit</span>
-							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailLines} /></label>
-							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailStops} /></label>
-						</div>
-						<div class="poc-t-row">
-							<span class="poc-t-l">Commuter Rail</span>
-							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailLines} /></label>
-							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailStops} /></label>
-						</div>
-					</div>
-				</fieldset>
+	<label class="poc-dev-toggle">
+		<input type="checkbox" bind:checked={panelState.showDevelopments} />
+		<span>Show MassBuilds developments on map</span>
+	</label>
 
-				<div class="poc-map-key card-key" role="region" aria-label="Map legend">
-					<div
-						class="poc-map-key-compact"
-						class:poc-map-key-compact--split={revealStage >= 2}
-					>
-						<div class="poc-map-key-col poc-map-key-col--tract">
-							<p class="poc-key-one poc-key-tract-fill">
-								<strong>Tract fill</strong>
-								<span class="poc-key-tract-fill-body">
-									<span class="poc-key-tract-fill-line">
-										Census net housing change ({periodDisplayLabel(panelState.timePeriod)}). Full scale on map colorbar.
-									</span>
-									<span
-										class="poc-key-tract-bar"
-										style="background: linear-gradient(to right, {MBTA_RED}, {MBTA_MAP_NEUTRAL}, {MBTA_BLUE});"
-										role="img"
-										aria-label="Housing change scale: more negative toward red, more positive toward blue"
-									></span>
+	<div class="poc-legend-row">
+		<fieldset class="poc-transit-field">
+			<legend class="poc-transit-legend">MBTA</legend>
+			<div class="poc-transit-compact" role="group" aria-label="Transit overlays">
+				<div class="poc-t-row">
+					<span class="poc-t-h"></span>
+					<span class="poc-t-h">Lines</span>
+					<span class="poc-t-h">Stops</span>
+				</div>
+				<div class="poc-t-row">
+					<span class="poc-t-l">Bus</span>
+					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusLines} /></label>
+					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusStops} /></label>
+				</div>
+				<div class="poc-t-row">
+					<span class="poc-t-l">Rapid Transit</span>
+					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailLines} /></label>
+					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailStops} /></label>
+				</div>
+				<div class="poc-t-row">
+					<span class="poc-t-l">Commuter Rail</span>
+					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailLines} /></label>
+					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailStops} /></label>
+				</div>
+			</div>
+		</fieldset>
+
+		<div class="poc-map-key card-key" role="region" aria-label="Map legend">
+			<div
+				class="poc-map-key-compact"
+				class:poc-map-key-compact--split={panelState.showDevelopments}
+			>
+				<div class="poc-map-key-col poc-map-key-col--tract">
+					<p class="poc-key-one poc-key-tract-fill">
+						<strong>Tract fill</strong>
+						<span class="poc-key-tract-fill-body">
+							<span class="poc-key-tract-fill-line">
+								Census housing change (%, 2010–20). Full scale on map colorbar.
+							</span>
+							<!-- Inline diverging strip matches tract choropleth (same anchors as map scale). -->
+							<span
+								class="poc-key-tract-bar"
+								style="background: linear-gradient(to right, {MBTA_RED}, {MBTA_MAP_NEUTRAL}, {MBTA_BLUE});"
+								role="img"
+								aria-label="Housing change scale: more negative toward red, more positive toward blue"
+							></span>
+						</span>
+					</p>
+					<p class="poc-key-no-data">
+						<span
+							class="poc-key-fill-swatch poc-key-fill-swatch--no-data"
+							style="background: #e7e0d5;"
+							role="img"
+							aria-hidden="true"
+						></span>
+						<span class="poc-key-no-data-text">Tan fill: excluded due to limited data (missing or unreliable % change).</span>
+					</p>
+					<ul class="poc-key-rings">
+						<li><span class="poc-k-ring poc-k-ring--tod"></span> TOD-dominated (significant development)</li>
+						<li><span class="poc-k-ring poc-k-ring--nontod"></span> Non-TOD-dominated (significant development)</li>
+						<li><span class="poc-k-ring poc-k-ring--min"></span> Minimal development</li>
+					</ul>
+				</div>
+				{#if panelState.showDevelopments}
+					<div class="poc-map-key-col poc-map-key-col--dev">
+						<p class="poc-key-one poc-key-dev">
+							<strong>Developments</strong>
+							<span class="poc-key-tract-fill-body">
+								<span class="poc-key-tract-fill-line">
+									Fill = share of new units that are multi-family. Full scale on map colorbar.
 								</span>
-							</p>
-							<p class="poc-key-no-data">
+								<!-- Same ramp as dev dots / SVG MF legend (interpolateOrangeGreen). -->
 								<span
-									class="poc-key-fill-swatch poc-key-fill-swatch--no-data"
-									style="background: #e7e0d5;"
+									class="poc-key-tract-bar"
+									style="background: linear-gradient(to right, {MBTA_ORANGE}, {MBTA_GREEN});"
 									role="img"
-									aria-hidden="true"
+									aria-label="Share of new units that are multi-family: lower toward orange, higher toward green"
 								></span>
-								<span class="poc-key-no-data-text">Tan fill: excluded due to limited data (missing or unreliable % change).</span>
-							</p>
-							{#if revealStage >= 1}
-								<ul class="poc-key-rings">
-									<li><span class="poc-k-ring poc-k-ring--tod"></span> TOD-dominated (significant development)</li>
-									<li><span class="poc-k-ring poc-k-ring--nontod"></span> Non-TOD-dominated (significant development)</li>
-									<li><span class="poc-k-ring poc-k-ring--min"></span> Minimal development</li>
-								</ul>
-							{/if}
-						</div>
-						{#if revealStage >= 2}
-							<div class="poc-map-key-col poc-map-key-col--dev">
-								<p class="poc-key-one poc-key-dev">
-									<strong>Developments</strong>
-									<span class="poc-key-tract-fill-body">
-										<span class="poc-key-tract-fill-line">
-											Fill = share of new units that are multi-family. Full scale on map colorbar.
-										</span>
-										<span
-											class="poc-key-tract-bar"
-											style="background: linear-gradient(to right, {MBTA_ORANGE}, {MBTA_GREEN});"
-											role="img"
-											aria-label="Share of new units that are multi-family: lower toward orange, higher toward green"
-										></span>
-									</span>
-								</p>
-								{#if devSizeLegendTicks && devSizeLegendTicks.length > 0}
-									<div class="poc-key-dev-sizes" aria-label="Development dot size by unit count">
-										<p class="poc-key-dev-sizes-title">Units (radius ∝ √units, same as map)</p>
-										<ul class="poc-key-dev-sizes-list">
-											{#each devSizeLegendTicks as t, i (i)}
-												<li class="poc-key-dev-size-item">
-													<span class="poc-key-dev-size-dot-wrap">
-														<span
-															class="poc-key-dev-size-dot"
-															style:width="{2 * t.rPx}px"
-															style:height="{2 * t.rPx}px"
-														></span>
-													</span>
-													<span class="poc-key-dev-size-num">{formatDevUnitsLegend(t.units)}</span>
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
-								<ul class="poc-key-rings" aria-label="Development dot outlines">
-									<li>
-										<span class="poc-k-ring poc-k-ring--dev-access"></span> Transit-accessible
-									</li>
-									<li>
-										<span class="poc-k-ring poc-k-ring--dev-noaccess"></span> Not transit-accessible
-									</li>
+							</span>
+						</p>
+						{#if devSizeLegendTicks && devSizeLegendTicks.length > 0}
+							<div class="poc-key-dev-sizes" aria-label="Development dot size by unit count">
+								<p class="poc-key-dev-sizes-title">Units (radius ∝ √units, same as map)</p>
+								<ul class="poc-key-dev-sizes-list">
+									{#each devSizeLegendTicks as t, i (i)}
+										<li class="poc-key-dev-size-item">
+											<span class="poc-key-dev-size-dot-wrap">
+												<span
+													class="poc-key-dev-size-dot"
+													style:width="{2 * t.rPx}px"
+													style:height="{2 * t.rPx}px"
+												></span>
+											</span>
+											<span class="poc-key-dev-size-num">{formatDevUnitsLegend(t.units)}</span>
+										</li>
+									{/each}
 								</ul>
 							</div>
 						{/if}
+						<ul class="poc-key-rings" aria-label="Development dot outlines">
+							<li>
+								<span class="poc-k-ring poc-k-ring--dev-access"></span> Transit-accessible
+							</li>
+							<li>
+								<span class="poc-k-ring poc-k-ring--dev-noaccess"></span> Not transit-accessible
+							</li>
+						</ul>
 					</div>
-				</div>
+				{/if}
 			</div>
-
-			<div class="map-wrap">
-				<div class="map-main" onmouseleave={handleOverlayLeave}>
-					<div class="poc-stage-chip">Map step {revealStage + 1} of 3</div>
-					<button class="poc-map-reset" type="button" onclick={recenterMap}>Recenter map</button>
-					<div class="map-root" bind:this={containerEl}></div>
-					{#if tooltip.visible}
-						<div
-							class="map-tooltip"
-							style:left="{tooltip.x + 12}px"
-							style:top="{tooltip.y + 12}px"
-						>
-							<div class="map-tooltip__header">
-								<div class="map-tooltip__header-copy">
-									{#if tooltip.eyebrow}
-										<p class="map-tooltip__eyebrow">{tooltip.eyebrow}</p>
-									{/if}
-									<p class="map-tooltip__title">{tooltip.title}</p>
-								</div>
-								{#if tooltip.badge}
-									<span class="map-tooltip__badge map-tooltip__badge--{tooltip.badgeTone}">{tooltip.badge}</span>
-								{/if}
-							</div>
-							{#if tooltip.primaryRows.length > 0}
-								<div
-									class="map-tooltip__primary"
-									class:map-tooltip__primary--tod={tooltip.badgeTone === 'tod'}
-									class:map-tooltip__primary--nontod={tooltip.badgeTone === 'nontod'}
-									class:map-tooltip__primary--minimal={tooltip.badgeTone === 'minimal'}
-								>
-									{#each tooltip.primaryRows as row, i (i)}
-										<div class="map-tooltip__primary-row">
-											<span class="map-tooltip__primary-label">{row.label}</span>
-											<span class="map-tooltip__primary-value">{row.value}</span>
-										</div>
-									{/each}
-								</div>
-							{/if}
-							{#if tooltip.secondaryRows.length > 0}
-								<div class="map-tooltip__details">
-									<p class="map-tooltip__details-label">Details</p>
-									<div class="map-tooltip__rows">
-										{#each tooltip.secondaryRows as row, i (i)}
-											<div class="map-tooltip__row">
-												<span class="map-tooltip__label">{row.label}</span>
-												<span class="map-tooltip__value">{row.value}</span>
-											</div>
-										{/each}
-									</div>
-								</div>
-							{/if}
-						</div>
-					{/if}
-				</div>
-
-				<aside class="poc-stepper-side" aria-label="Map explanation steps">
-					<div class="poc-stepper-head">
-						<p class="poc-stepper-inline-kicker">Map walkthrough</p>
-						<p class="poc-stepper-inline-hint">Scroll down the page and the map will progressively add layers.</p>
-					</div>
-					<div class="poc-stepper-inline-rail" aria-label="Map steps">
-						{#each stepContent as step, i}
-							<section
-								use:stepRef={i}
-								class="poc-stepper-card"
-								class:poc-stepper-card--active={revealStage === i}
-								data-step-index={i}
-							>
-								<div class="poc-stepper-card-top">
-									<span class="poc-stepper-pill-num">{i + 1}</span>
-									<div class="poc-stepper-pill-text">
-										<span class="poc-stepper-pill-kicker">{step.kicker}</span>
-										<span class="poc-stepper-pill-title">{step.title}</span>
-									</div>
-								</div>
-								<p class="poc-stepper-card-body">{step.body}</p>
-							</section>
-						{/each}
-					</div>
-				</aside>
-			</div>
-			<p class="poc-map-zoom-hint">Scroll through the narrative steps · drag to pan · scroll or pinch to zoom</p>
 		</div>
 	</div>
+
+	<div class="map-wrap">
+		<div class="map-root" bind:this={containerEl}></div>
+		{#if tooltip.visible}
+			<div
+				class="map-tooltip"
+				style:left="{tooltip.x + 12}px"
+				style:top="{tooltip.y + 12}px"
+			>
+				{#each tooltip.lines as line, i (i)}
+					<p class:tooltip-bold={line.bold}>{line.text}</p>
+				{/each}
+			</div>
+		{/if}
+	</div>
+	<p class="poc-map-zoom-hint">Scroll or pinch to zoom · drag to pan · click tracts to select (optional)</p>
 </div>
 
 <style>
@@ -1246,149 +1072,29 @@
 		min-width: 0;
 	}
 
-	.poc-scrolly {
-		display: block;
-	}
-
-	.poc-scrolly-map {
+	.poc-dev-toggle {
 		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		min-height: 0;
-	}
-
-	.poc-stage-chip {
-		align-self: flex-start;
-		padding: 5px 9px;
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
-		border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
-		font-size: 0.72rem;
-		font-weight: 700;
-		letter-spacing: 0.03em;
-		color: var(--text);
-	}
-
-	.poc-stepper-side {
-		display: grid;
-		gap: 14px;
-		align-content: start;
-		padding-top: 12px;
-	}
-
-	.poc-stepper-head {
-		position: sticky;
-		top: 16px;
-		display: grid;
-		gap: 4px;
-		padding: 12px 14px;
-		border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
-		border-radius: var(--radius-sm);
-		background: color-mix(in srgb, var(--bg-card) 96%, white);
-	}
-
-	.poc-stepper-inline-kicker,
-	.poc-stepper-inline-body-kicker {
-		margin: 0;
-		font-size: 0.68rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--accent);
-	}
-
-	.poc-stepper-inline-hint,
-	.poc-stepper-inline-body-copy {
-		margin: 0;
-		font-size: 0.76rem;
-		line-height: 1.4;
-		color: var(--text-muted);
-	}
-
-	.poc-stepper-inline-rail {
-		display: grid;
-		gap: 16vh;
-	}
-
-	.poc-stepper-card {
-		display: grid;
-		align-content: center;
-		gap: 12px;
-		width: 100%;
-		min-height: 58vh;
-		padding: 10px 0 0;
-		border-left: 2px solid color-mix(in srgb, var(--accent) 16%, var(--border));
-		padding-left: 18px;
-		border-radius: var(--radius-sm);
-		border: 0;
-		background: transparent;
-		text-align: left;
-		color: var(--text);
-		opacity: 0.48;
-		transform: translateY(14px);
-		transition:
-			opacity 220ms ease,
-			transform 220ms ease,
-			border-color 220ms ease;
-	}
-
-	.poc-stepper-card--active {
-		border-left-color: color-mix(in srgb, var(--accent) 52%, var(--border));
-		opacity: 1;
-		transform: translateY(0);
-	}
-
-	.poc-stepper-card-top {
-		display: grid;
-		grid-template-columns: 28px minmax(0, 1fr);
-		gap: 10px;
 		align-items: center;
-	}
-
-	.poc-stepper-pill-num {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		border-radius: 999px;
-		border: 1px solid var(--border);
-		font-size: 0.82rem;
-		font-weight: 700;
-		color: var(--text);
-	}
-
-	.poc-stepper-card--active .poc-stepper-pill-num {
-		border-color: var(--accent);
-		background: color-mix(in srgb, var(--accent) 15%, var(--bg-card));
-	}
-
-	.poc-stepper-pill-text {
-		display: grid;
-		min-width: 0;
-	}
-
-	.poc-stepper-pill-title {
-		font-size: 0.82rem;
+		gap: 8px;
+		margin: 0;
+		padding: 8px 10px;
+		border-radius: var(--radius-sm);
+		border: 2px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+		background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+		font-size: 0.8125rem;
 		font-weight: 600;
-		line-height: 1.25;
 		color: var(--text);
-	}
-
-	.poc-stepper-pill-kicker {
-		font-size: 0.65rem;
+		cursor: pointer;
+		user-select: none;
 		line-height: 1.25;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
 	}
 
-	.poc-stepper-card-body {
+	.poc-dev-toggle input {
+		width: 1.1rem;
+		height: 1.1rem;
+		accent-color: var(--accent);
 		margin: 0;
-		max-width: 32ch;
-		font-size: 0.9rem;
-		line-height: 1.6;
-		color: var(--text-muted);
+		flex-shrink: 0;
 	}
 
 	/* Transit toggles ~1/4 width; text legend ~3/4 on wide viewports */
@@ -1400,7 +1106,7 @@
 		min-width: 0;
 	}
 
-	@media (min-width: 640px) {
+		@media (min-width: 640px) {
 		.poc-legend-row {
 			flex-direction: row;
 			align-items: flex-start;
@@ -1416,36 +1122,6 @@
 		.poc-map-key {
 			flex: 1 1 0;
 			min-width: 0;
-		}
-	}
-
-	@media (max-width: 900px) {
-		.map-wrap {
-			grid-template-columns: 1fr;
-		}
-
-		.map-main {
-			position: relative;
-			top: auto;
-		}
-
-		.poc-map-reset {
-			top: 8px;
-			right: 8px;
-		}
-
-		.poc-stepper-head {
-			position: relative;
-			top: auto;
-		}
-
-		.poc-stepper-inline-rail {
-			gap: 18px;
-		}
-
-		.poc-stepper-card {
-			min-height: 0;
-			padding-top: 0;
 		}
 	}
 
@@ -1751,45 +1427,9 @@
 	}
 
 	.map-wrap {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-		gap: 28px;
+		position: relative;
 		width: 100%;
 		background: transparent;
-		align-items: stretch;
-	}
-
-	.map-main {
-		position: sticky;
-		top: 18px;
-		min-width: 0;
-		align-self: start;
-	}
-
-	.poc-map-reset {
-		position: absolute;
-		top: 10px;
-		right: 10px;
-		z-index: 6;
-		padding: 0.42rem 0.7rem;
-		border: 1px solid color-mix(in srgb, var(--border) 88%, white 12%);
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--bg-card) 92%, white 8%);
-		color: var(--text);
-		font-size: 0.78rem;
-		font-weight: 700;
-		line-height: 1;
-		box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-		backdrop-filter: blur(6px);
-	}
-
-	.poc-map-reset:hover {
-		background: color-mix(in srgb, var(--bg-card) 82%, white 18%);
-	}
-
-	.poc-map-reset:focus-visible {
-		outline: 2px solid color-mix(in srgb, var(--accent) 60%, white 40%);
-		outline-offset: 2px;
 	}
 
 	.map-root {
@@ -1801,8 +1441,8 @@
 	.map-tooltip {
 		position: fixed;
 		z-index: 20;
-		max-width: 360px;
-		padding: 12px 13px;
+		max-width: 340px;
+		padding: 10px 12px;
 		font-size: 0.78rem;
 		line-height: 1.4;
 		color: var(--text);
@@ -1813,158 +1453,17 @@
 		pointer-events: none;
 	}
 
-	.map-tooltip__header {
-		display: flex;
-		justify-content: space-between;
-		gap: 8px;
-		align-items: flex-start;
-		margin-bottom: 8px;
+	.map-tooltip p {
+		margin: 0 0 4px;
 	}
 
-	.map-tooltip__header-copy {
-		display: grid;
-		gap: 3px;
-		min-width: 0;
+	.map-tooltip p:last-child {
+		margin-bottom: 0;
 	}
 
-	.map-tooltip__eyebrow {
-		margin: 0;
-		font-size: 0.63rem;
+	:global(.tooltip-bold) {
 		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--text-muted);
-	}
-
-	.map-tooltip__title {
-		margin: 0;
-		font-size: 0.92rem;
-		font-weight: 700;
-		line-height: 1.2;
 		color: var(--text);
-	}
-
-	.map-tooltip__badge {
-		display: inline-flex;
-		align-items: center;
-		padding: 3px 8px;
-		border-radius: 999px;
-		font-size: 0.68rem;
-		font-weight: 700;
-		letter-spacing: 0.03em;
-		border: 1px solid var(--border);
-		background: color-mix(in srgb, var(--bg-card) 85%, transparent);
-	}
-
-	.map-tooltip__badge--tod {
-		border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-		background: color-mix(in srgb, var(--accent) 13%, var(--bg-card));
-		color: var(--accent);
-	}
-
-	.map-tooltip__badge--nontod {
-		border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
-		background: color-mix(in srgb, var(--warning) 13%, var(--bg-card));
-		color: var(--warning);
-	}
-
-	.map-tooltip__badge--minimal {
-		border-color: #94a3b8;
-		background: color-mix(in srgb, #94a3b8 13%, var(--bg-card));
-		color: #526074;
-	}
-
-	.map-tooltip__badge--neutral {
-		color: var(--text-muted);
-	}
-
-	.map-tooltip__primary {
-		display: grid;
-		gap: 6px;
-		padding: 8px 10px;
-		margin-bottom: 8px;
-		border-radius: 10px;
-		background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
-		border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
-	}
-
-	.map-tooltip__primary--tod {
-		background: color-mix(in srgb, var(--accent) 9%, var(--bg-card));
-		border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-	}
-
-	.map-tooltip__primary--nontod {
-		background: color-mix(in srgb, var(--warning) 9%, var(--bg-card));
-		border-color: color-mix(in srgb, var(--warning) 28%, var(--border));
-	}
-
-	.map-tooltip__primary--minimal {
-		background: color-mix(in srgb, #94a3b8 10%, var(--bg-card));
-		border-color: color-mix(in srgb, #94a3b8 28%, var(--border));
-	}
-
-	.map-tooltip__primary-row {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		gap: 10px;
-		align-items: baseline;
-	}
-
-	.map-tooltip__primary-label {
-		font-size: 0.68rem;
-		font-weight: 700;
-		line-height: 1.3;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: var(--text-muted);
-	}
-
-	.map-tooltip__primary-value {
-		font-size: 0.86rem;
-		font-weight: 700;
-		line-height: 1.25;
-		text-align: right;
-		color: var(--text);
-	}
-
-	.map-tooltip__details {
-		display: grid;
-		gap: 6px;
-	}
-
-	.map-tooltip__details-label {
-		margin: 0;
-		font-size: 0.63rem;
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--text-muted);
-	}
-
-	.map-tooltip__rows {
-		display: grid;
-		gap: 6px;
-	}
-
-	.map-tooltip__row {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		gap: 10px;
-		align-items: start;
-	}
-
-	.map-tooltip__label {
-		color: var(--text-muted);
-		font-size: 0.73rem;
-		line-height: 1.35;
-	}
-
-	.map-tooltip__value {
-		color: var(--text);
-		font-size: 0.76rem;
-		font-weight: 600;
-		line-height: 1.35;
-		text-align: right;
 	}
 
 	.poc-map-zoom-hint {
