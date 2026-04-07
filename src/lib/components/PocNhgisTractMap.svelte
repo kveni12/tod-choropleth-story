@@ -1,5 +1,5 @@
 <script>
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import * as d3 from 'd3';
 	import {
 		tractGeo,
@@ -49,7 +49,7 @@
 	let tooltip = $state({ visible: false, x: 0, y: 0, lines: [] });
 	let currentStep = $state(0);
 	let stepEls = $state([]);
-	let stepObserver = null;
+	let scrollCleanup = null;
 
 	const storySteps = [
 		{
@@ -187,34 +187,47 @@
 		};
 	}
 
-	function setupStepObserver() {
-		if (stepObserver) {
-			stepObserver.disconnect();
-			stepObserver = null;
-		}
+	function syncStepFromScroll() {
 		const nodes = stepEls.filter(Boolean);
-		if (!nodes.length) return;
-		stepObserver = new IntersectionObserver(
-			(entries) => {
-				let bestIndex = currentStep;
-				let bestRatio = 0;
-				for (const entry of entries) {
-					if (!entry.isIntersecting) continue;
-					const idx = Number(entry.target.getAttribute('data-step-index'));
-					if (entry.intersectionRatio >= bestRatio) {
-						bestRatio = entry.intersectionRatio;
-						bestIndex = idx;
-					}
-				}
-				currentStep = bestIndex;
-			},
-			{
-				root: null,
-				threshold: [0.2, 0.35, 0.5, 0.7],
-				rootMargin: '-12% 0px -28% 0px'
+		if (!nodes.length || typeof window === 'undefined') return;
+		const targetY = window.innerHeight * 0.42;
+		let bestIndex = 0;
+		let bestDistance = Number.POSITIVE_INFINITY;
+		for (const node of nodes) {
+			const idx = Number(node.getAttribute('data-step-index'));
+			const rect = node.getBoundingClientRect();
+			const centerY = rect.top + rect.height / 2;
+			const distance = Math.abs(centerY - targetY);
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				bestIndex = idx;
 			}
-		);
-		for (const node of nodes) stepObserver.observe(node);
+		}
+		currentStep = bestIndex;
+	}
+
+	function setupScrollSync() {
+		if (scrollCleanup) {
+			scrollCleanup();
+			scrollCleanup = null;
+		}
+		if (typeof window === 'undefined') return;
+		let ticking = false;
+		const requestSync = () => {
+			if (ticking) return;
+			ticking = true;
+			window.requestAnimationFrame(() => {
+				ticking = false;
+				syncStepFromScroll();
+			});
+		};
+		window.addEventListener('scroll', requestSync, { passive: true });
+		window.addEventListener('resize', requestSync);
+		requestSync();
+		scrollCleanup = () => {
+			window.removeEventListener('scroll', requestSync);
+			window.removeEventListener('resize', requestSync);
+		};
 	}
 
 	function meetsTodMultifamilyFloor(d, ps) {
@@ -1013,11 +1026,18 @@
 
 	$effect(() => {
 		void stepEls;
-		setupStepObserver();
+		setupScrollSync();
+	});
+
+	onMount(() => {
+		setupScrollSync();
+		return () => {
+			if (scrollCleanup) scrollCleanup();
+		};
 	});
 
 	onDestroy(() => {
-		if (stepObserver) stepObserver.disconnect();
+		if (scrollCleanup) scrollCleanup();
 		if (containerEl) d3.select(containerEl).selectAll('*').remove();
 		lastStructuralKey = '';
 		svgRef = null;
