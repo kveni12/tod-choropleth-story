@@ -100,23 +100,24 @@
 		<div class="eyebrow">Interactive Visualization Writeup</div>
 		<h1>Tract categorizations and housing change in Massachusetts.</h1>
 		<p class="subtitle">
-			This proof of concept focuses on one graphic: a tract-level map of housing change that progressively adds
-			TOD-dominated tracts, non-TOD-dominated tracts, and the MassBuilds projects behind those patterns. The rest
-			of the broader dashboard is preserved below as commented archive notes rather than rendered content.
+			Transit-oriented development is widely treated as a positive planning strategy, but this proof of concept
+			zooms in on one narrower question: where does TOD actually concentrate, and how do those tracts compare with
+			the statewide housing-change pattern? The graphic below keeps the original tract map structure and uses a
+			scroll-guided sequence to introduce housing change, tract cohorts, and project locations one layer at a time.
 		</p>
 	</section>
 
 	<section class="story card full-width">
-		<h2>What this map shows</h2>
+		<h2>The question this graphic is trying to answer</h2>
 		<p>
-			Tracts are colored by <strong>census percent change in housing units (2010–20)</strong> and outlined by
-			MassBuilds cohort: <strong>TOD-dominated</strong>, <strong>non-TOD-dominated</strong>, and
-			<strong>minimal development</strong>. The scroll sequence starts with statewide housing change, then adds
-			tract category boundaries, and finally adds the projects that help explain those patterns.
+			This map asks where tract-level housing growth overlaps with <strong>TOD-dominated development</strong>.
+			Instead of starting with demographic outcomes, it starts with the built landscape itself: which tracts added
+			housing, which of those tracts were dominated by transit-oriented development, and where the underlying
+			MassBuilds projects were actually built.
 		</p>
 		<p>
-			The goal is to help the reader compare statewide background change with the places where transit-oriented
-			development is actually concentrated.
+			That framing keeps the focus on a single spatial story before moving to any broader claims about equity,
+			affordability, or neighborhood change.
 		</p>
 	</section>
 
@@ -131,6 +132,21 @@
 			<p>{error}</p>
 		</div>
 	{:else}
+		<section class="story card full-width">
+			<h2>Methodology</h2>
+			<p>
+				Tracts are colored by <strong>census percent change in housing units (2010–20)</strong> and grouped into
+				three MassBuilds development cohorts using the same rules as the original tract dashboard:
+				<strong>TOD-dominated</strong>, <strong>non-TOD-dominated</strong>, and
+				<strong>minimal development</strong>.
+			</p>
+			<p>
+				A tract is treated as TOD-dominated when at least half of its observed new development falls within the
+				project’s TOD definition. Minimal-development tracts are kept as a reference group so the reader can
+				distinguish broad statewide background change from places with substantial recent production.
+			</p>
+		</section>
+
 		<section class="chart-card card full-width">
 			<h3>Tract categorizations and housing change overview (tract, 2010–20 window)</h3>
 			<p class="chart-note">
@@ -150,15 +166,29 @@
 		</section>
 
 		<section class="story card full-width">
-			<h2>How to interpret it</h2>
+			<h2>How to read the map</h2>
 			<p>
-				Read the map in three passes. First, the choropleth shows where tract-level housing growth was strongest.
-				Second, the cohort outlines separate TOD-dominated tracts from non-TOD and minimal-development tracts.
-				Third, the MassBuilds points connect those tract patterns back to specific projects on the ground.
+				Read the map in three passes. First, the choropleth shows where tract-level housing growth was strongest
+				between 2010 and 2020. Second, the cohort outlines separate TOD-dominated tracts from non-TOD and
+				minimal-development tracts. Third, the project points connect those tract-level patterns back to specific
+				developments on the ground.
 			</p>
 			<p>
-				This keeps the interaction focused on one question: where do transit-oriented development patterns stand
-				out from the broader statewide housing-change map?
+				The goal is not to make the reader hunt for hidden insight. It is to progressively clarify how the tract
+				classification sits on top of the statewide housing-change pattern.
+			</p>
+		</section>
+
+		<section class="story card full-width">
+			<h2>How this fits the larger project</h2>
+			<p>
+				This figure is the spatial setup for the broader TOD story. It does not, by itself, show gentrification
+				or prove any causal effect. Instead, it establishes where transit-oriented development is concentrated and
+				which places should receive closer attention in the later affordability and demographic analysis.
+			</p>
+			<p>
+				In that sense, the tract cohorts are best understood as a way to organize the map into meaningful groups,
+				not as a final argument on their own.
 			</p>
 		</section>
 
