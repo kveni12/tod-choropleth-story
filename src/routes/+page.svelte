@@ -240,12 +240,11 @@
 	/>
 </svelte:head>
 
-<div class="page">
-	<section class="hero">
-		<div class="hero-copy card">
+<div class="poc-root">
+	<section class="hero-full card">
 			<p class="eyebrow">Interactive Visualization Writeup</p>
 			<h1>Where TOD changes the map of housing growth in Massachusetts.</h1>
-			<p class="lede">
+			<p class="subtitle">
 				This version is intentionally narrow. Instead of a dashboard with many competing views, it uses the
 				exact tract scrollytelling map from the original proof of concept and frames it as one data story about
 				where transit-oriented development clusters, how those tracts differ from the statewide background, and
@@ -255,23 +254,6 @@
 				The final project plan is included at the end of this writeup:
 				<a href="#final-project-plan">jump to the plan</a>.
 			</p>
-		</div>
-		<div class="hero-aside card">
-			<div>
-				<h2>Story question</h2>
-				<p>
-					Where do transit-accessible projects concentrate, and how does that concentration change the way we
-					read tract-level housing growth across Massachusetts?
-				</p>
-			</div>
-			<div>
-				<h2>How to read the story</h2>
-				<p>
-					Scroll within the narrative steps built into the map. The choropleth appears first, then tract
-					categories, then the project points that produce those tract-level patterns.
-				</p>
-			</div>
-		</div>
 	</section>
 
 	{#if loading}
@@ -285,7 +267,7 @@
 			<p>{error}</p>
 		</section>
 	{:else}
-		<section class="story-intro card">
+		<section class="story card full-width">
 			<h2>Why this one map is enough for the proof of concept</h2>
 			<p>
 				The most important interaction in this milestone is not a filter panel or a dashboard of linked charts.
@@ -299,16 +281,25 @@
 			</p>
 		</section>
 
-		<section class="map-story">
-			<PocNhgisTractMap
-				panelState={pocMapPanel}
-				tractList={tractListFiltered}
-				nhgisRows={nhgisLikeRows}
-				metricsDevelopments={tractWindowDevs}
-			/>
+		<section class="chart-card card full-width">
+			<h3>Tract categorizations and housing change overview (tract, 2010–20 window)</h3>
+			<p class="chart-note">
+				Tracts are colored by <strong>census percent change in housing units (2010–20)</strong> and outlined by
+				MassBuilds cohort (TOD-dominated vs non-TOD-dominated vs minimal development), matching the tract
+				dashboard rules. The narrative built into the map progressively introduces tract outlines and the
+				MassBuilds developments that produce those tract-level patterns.
+			</p>
+			<div class="chart-wrap chart-tall chart-wrap--poc-map">
+				<PocNhgisTractMap
+					panelState={pocMapPanel}
+					tractList={tractListFiltered}
+					nhgisRows={nhgisLikeRows}
+					metricsDevelopments={tractWindowDevs}
+				/>
+			</div>
 		</section>
 
-		<section class="analysis card">
+		<section class="story card full-width">
 			<h2>Design rationale</h2>
 			<ul>
 				<li>This app keeps the exact tract scrollytelling map from the original `tod-d3-poc` because that map already carried the most compelling interaction technique in the project.</li>
@@ -319,7 +310,7 @@
 			</ul>
 		</section>
 
-		<section class="analysis card">
+		<section class="story card full-width">
 			<h2>Development process</h2>
 			<ul>
 				<li>The main process decision was to aggressively reduce scope: preserve the tract map interaction that already worked, remove unrelated views, and rebuild the presentation around that single component.</li>
@@ -329,7 +320,7 @@
 			</ul>
 		</section>
 
-		<section class="analysis card" id="final-project-plan">
+		<section class="story card full-width" id="final-project-plan">
 			<h2>Final project plan</h2>
 			<p class="plan-intro">
 				This plan documents the week-by-week order of work, team ownership, and the fallback strategy if scope needs to tighten further.
@@ -372,7 +363,7 @@
 </div>
 
 <style>
-	.page {
+	.poc-root {
 		max-width: var(--max-width);
 		margin: 0 auto;
 		padding: 2rem 1.25rem 4rem;
@@ -385,19 +376,9 @@
 		box-shadow: var(--shadow);
 	}
 
-	.hero {
-		display: grid;
-		grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.75fr);
-		gap: 1.1rem;
+	.hero-full {
+		padding: 1.75rem;
 		margin-bottom: 1.25rem;
-	}
-
-	.hero-copy,
-	.hero-aside,
-	.story-intro,
-	.status,
-	.analysis {
-		padding: 1.5rem;
 	}
 
 	.eyebrow {
@@ -420,22 +401,29 @@
 		letter-spacing: -0.05em;
 	}
 
-	.hero-aside h2,
-	.story-intro h2,
-	.analysis h2 {
-		margin-bottom: 0.6rem;
-		font-size: 1.35rem;
+	.subtitle {
+		color: var(--muted);
+		line-height: 1.58;
+		margin-bottom: 0;
 	}
 
-	.lede,
+	.story,
+	.status {
+		padding: 18px;
+	}
+
+	.story h2,
+	.story h3 {
+		margin-bottom: 0.6rem;
+		font-size: 1.2rem;
+	}
+
 	.hero-note,
-	.hero-aside p,
-	.story-intro p,
+	.story p,
 	.status p,
-	.analysis li,
-	.analysis p {
+	.story li {
 		color: var(--muted);
-		line-height: 1.72;
+		line-height: 1.58;
 	}
 
 	.hero-note {
@@ -443,14 +431,45 @@
 		font-size: 0.96rem;
 	}
 
-	.hero-aside {
-		display: grid;
-		gap: 1rem;
+	.full-width {
+		width: 100%;
 	}
 
-	.story-intro,
-	.map-story,
-	.analysis {
+	.chart-card {
+		padding: 16px;
+	}
+
+	.chart-card h3 {
+		font-size: 1.05rem;
+		margin-bottom: 8px;
+	}
+
+	.chart-note {
+		color: var(--muted);
+		line-height: 1.55;
+		font-size: 0.9rem;
+		margin-bottom: 8px;
+	}
+
+	.chart-wrap {
+		position: relative;
+		min-height: 420px;
+	}
+
+	.chart-tall {
+		min-height: 520px;
+	}
+
+	.chart-wrap--poc-map {
+		width: 80%;
+		max-width: 100%;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.story,
+	.chart-card,
+	.status {
 		margin-top: 1rem;
 	}
 
@@ -476,11 +495,11 @@
 		animation: spin 0.8s linear infinite;
 	}
 
-	.analysis ul {
+	.story ul {
 		padding-left: 1.2rem;
 	}
 
-	.analysis li + li {
+	.story li + li {
 		margin-top: 0.5rem;
 	}
 
@@ -540,22 +559,17 @@
 	}
 
 	@media (max-width: 1100px) {
-		.hero {
-			grid-template-columns: 1fr;
+		.poc-root {
+			padding-left: 0.9rem;
+			padding-right: 0.9rem;
 		}
 	}
 
 	@media (max-width: 720px) {
-		.page {
-			padding-left: 0.9rem;
-			padding-right: 0.9rem;
-		}
-
-		.hero-copy,
-		.hero-aside,
-		.story-intro,
-		.status,
-		.analysis {
+		.hero-full,
+		.story,
+		.chart-card,
+		.status {
 			padding: 1.1rem;
 		}
 
