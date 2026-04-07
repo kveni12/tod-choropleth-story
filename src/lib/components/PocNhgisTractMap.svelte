@@ -47,9 +47,33 @@
 
 	let containerEl = $state(null);
 	let tooltip = $state({ visible: false, x: 0, y: 0, lines: [] });
+	let currentStep = $state(0);
+	let stepEls = $state([]);
+	let stepObserver = null;
+
+	const storySteps = [
+		{
+			title: 'Step 1',
+			heading: 'Start with the statewide housing change pattern',
+			body: 'The base choropleth shows where housing units grew fastest between 2010 and 2020, without yet distinguishing which tracts were dominated by transit-oriented development.'
+		},
+		{
+			title: 'Step 2',
+			heading: 'Then layer in tract development cohorts',
+			body: 'The outlines and subtle tint separate TOD-dominated tracts from non-TOD and minimal-development tracts, so the reader can compare the statewide background with the places where TOD is actually concentrated.'
+		},
+		{
+			title: 'Step 3',
+			heading: 'Finally connect patterns to specific projects',
+			body: 'MassBuilds project points ground those tract-level patterns in actual developments, making it easier to see where the cohort classifications come from.'
+		}
+	];
 
 	/** Nice unit ticks + pixel radii for HTML dot-size legend (same sqrt scale as map dots). */
 	let devSizeLegendTicks = $state(/** @type {{ units: number; rPx: number }[] | null} */ (null));
+
+	const showCategoryLayer = $derived(currentStep >= 1);
+	const showProjectDots = $derived(currentStep >= 2);
 
 	/** Reserved width per map colorbar (ticks + bar + vertical title, inset from map). */
 	const CHORO_LEGEND_COL_W = 70;
@@ -122,7 +146,7 @@
 			n: tractList.length,
 			gf: tractGeo?.features?.length ?? 0,
 			ms: mbtaStops.length,
-			showDev: panelState.showDevelopments
+			showDev: showProjectDots
 		})
 	);
 
@@ -143,9 +167,55 @@
 			dn: developments.length,
 			nr: nhgisRows?.length ?? 0,
 			md: metricsDevelopments?.length ?? -1,
-			showDev: panelState.showDevelopments
+			showDev: showProjectDots,
+			step: currentStep
 		})
 	);
+
+	function setStepEl(index, node) {
+		const next = [...stepEls];
+		next[index] = node;
+		stepEls = next;
+	}
+
+	function bindStep(node, index) {
+		setStepEl(index, node);
+		return {
+			destroy() {
+				setStepEl(index, null);
+			}
+		};
+	}
+
+	function setupStepObserver() {
+		if (stepObserver) {
+			stepObserver.disconnect();
+			stepObserver = null;
+		}
+		const nodes = stepEls.filter(Boolean);
+		if (!nodes.length) return;
+		stepObserver = new IntersectionObserver(
+			(entries) => {
+				let bestIndex = currentStep;
+				let bestRatio = 0;
+				for (const entry of entries) {
+					if (!entry.isIntersecting) continue;
+					const idx = Number(entry.target.getAttribute('data-step-index'));
+					if (entry.intersectionRatio >= bestRatio) {
+						bestRatio = entry.intersectionRatio;
+						bestIndex = idx;
+					}
+				}
+				currentStep = bestIndex;
+			},
+			{
+				root: null,
+				threshold: [0.2, 0.35, 0.5, 0.7],
+				rootMargin: '-12% 0px -28% 0px'
+			}
+		);
+		for (const node of nodes) stepObserver.observe(node);
+	}
 
 	function meetsTodMultifamilyFloor(d, ps) {
 		const minPct = Math.min(100, Math.max(0, Number(ps.minDevMultifamilyRatioPct) || 0));
@@ -288,7 +358,7 @@
 		const cw = containerEl.clientWidth || 900;
 		mapW = Math.max(400, Math.min(1100, cw - CHORO_LEGEND_COL_W - DEV_LEGEND_COL_W - 16));
 
-		const showDevs = panelState.showDevelopments;
+		const showDevs = showProjectDots;
 		mapCanvasLeft = showDevs ? DEV_LEGEND_COL_W : 0;
 		const svgW = mapCanvasLeft + mapW + CHORO_LEGEND_COL_W;
 		const svgH = mapH;
@@ -424,15 +494,25 @@
 			.domain([-maxAbs, 0, maxAbs])
 			.range([MBTA_RED, MBTA_MAP_NEUTRAL, MBTA_BLUE]);
 
+		const categoriesVisible = showCategoryLayer;
+
 		d3.select(containerEl)
 			.selectAll('path.tract-poly')
+			.transition()
+			.duration(350)
 			.attr('fill', (d) => {
 				const id = d.properties?.gisjoin;
 				const row = rowByGj.get(id);
 				const v = row ? Number(row.census_hu_change_10_20) : NaN;
-				return Number.isFinite(v) ? color(v) : '#e7e0d5';
+				const base = Number.isFinite(v) ? color(v) : '#e7e0d5';
+				if (!categoriesVisible || !row?.devClass || !Number.isFinite(v)) return base;
+				if (row.devClass === 'tod_dominated') return d3.interpolateRgb(base, '#00843d')(0.18);
+				if (row.devClass === 'nontod_dominated') return d3.interpolateRgb(base, '#ed8b00')(0.18);
+				if (row.devClass === 'minimal') return d3.interpolateRgb(base, '#94a3b8')(0.14);
+				return base;
 			})
 			.attr('stroke', (d) => {
+				if (!categoriesVisible) return 'rgba(60,64,67,0.22)';
 				const id = d.properties?.gisjoin;
 				const row = rowByGj.get(id);
 				const dc = row?.devClass;
@@ -442,6 +522,7 @@
 				return 'rgba(60,64,67,0.22)';
 			})
 			.attr('stroke-width', (d) => {
+				if (!categoriesVisible) return 0.5;
 				const id = d.properties?.gisjoin;
 				const row = rowByGj.get(id);
 				const dc = row?.devClass;
@@ -538,7 +619,7 @@
 		const devLayer = d3.select(containerEl).select('.dev-dots-layer');
 		devLayer.selectAll('*').remove();
 
-		if (!panelState.showDevelopments) {
+		if (!showProjectDots) {
 			devSizeLegendTicks = null;
 			return;
 		}
@@ -636,6 +717,13 @@
 			.on('mouseenter', handleDevEnter)
 			.on('mousemove', handleMouseMove)
 			.on('mouseleave', handleOverlayLeave);
+
+		devLayer
+			.selectAll('circle.dev-dot')
+			.attr('opacity', 0)
+			.transition()
+			.duration(350)
+			.attr('opacity', 1);
 	}
 
 	function updateOverlays() {
@@ -671,12 +759,14 @@
 		const hoveredId = panelState.hoveredTract;
 		const selectedSet = panelState.selectedTracts;
 		const rowByGj = containerEl.__pocRowByGj;
+		const categoriesVisible = showCategoryLayer;
 		d3.select(containerEl)
 			.selectAll('path.tract-poly')
 			.attr('stroke', (d) => {
 				const id = d.properties?.gisjoin;
 				if (id === hoveredId) return '#ffffff';
 				if (selectedSet.has(id)) return 'var(--cat-a, #6366f1)';
+				if (!categoriesVisible) return 'rgba(60,64,67,0.22)';
 				const row = rowByGj?.get(id);
 				const dc = row?.devClass;
 				if (dc === 'tod_dominated') return 'var(--accent, #0d9488)';
@@ -690,6 +780,7 @@
 				const dc = row?.devClass;
 				if (id === hoveredId) return dc === 'minimal' ? 1.6 : 3.2;
 				if (selectedSet.has(id)) return dc === 'minimal' ? 1.4 : 2.8;
+				if (!categoriesVisible) return 0.5;
 				if (!dc) return 0.5;
 				return dc === 'minimal' ? 0.75 : 1.5;
 			});
@@ -920,7 +1011,13 @@
 		updateSelection();
 	});
 
+	$effect(() => {
+		void stepEls;
+		setupStepObserver();
+	});
+
 	onDestroy(() => {
+		if (stepObserver) stepObserver.disconnect();
 		if (containerEl) d3.select(containerEl).selectAll('*').remove();
 		lastStructuralKey = '';
 		svgRef = null;
@@ -929,137 +1026,151 @@
 </script>
 
 <div class="poc-nhgis-map">
-	<label class="poc-dev-toggle">
-		<input type="checkbox" bind:checked={panelState.showDevelopments} />
-		<span>Show MassBuilds developments on map</span>
-	</label>
+	<div class="poc-story-layout">
+		<div class="poc-story-graphic">
+			<div class="poc-legend-row">
+				<fieldset class="poc-transit-field">
+					<legend class="poc-transit-legend">MBTA</legend>
+					<div class="poc-transit-compact" role="group" aria-label="Transit overlays">
+						<div class="poc-t-row">
+							<span class="poc-t-h"></span>
+							<span class="poc-t-h">Lines</span>
+							<span class="poc-t-h">Stops</span>
+						</div>
+						<div class="poc-t-row">
+							<span class="poc-t-l">Bus</span>
+							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusLines} /></label>
+							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusStops} /></label>
+						</div>
+						<div class="poc-t-row">
+							<span class="poc-t-l">Rapid Transit</span>
+							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailLines} /></label>
+							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailStops} /></label>
+						</div>
+						<div class="poc-t-row">
+							<span class="poc-t-l">Commuter Rail</span>
+							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailLines} /></label>
+							<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailStops} /></label>
+						</div>
+					</div>
+				</fieldset>
 
-	<div class="poc-legend-row">
-		<fieldset class="poc-transit-field">
-			<legend class="poc-transit-legend">MBTA</legend>
-			<div class="poc-transit-compact" role="group" aria-label="Transit overlays">
-				<div class="poc-t-row">
-					<span class="poc-t-h"></span>
-					<span class="poc-t-h">Lines</span>
-					<span class="poc-t-h">Stops</span>
-				</div>
-				<div class="poc-t-row">
-					<span class="poc-t-l">Bus</span>
-					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusLines} /></label>
-					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showBusStops} /></label>
-				</div>
-				<div class="poc-t-row">
-					<span class="poc-t-l">Rapid Transit</span>
-					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailLines} /></label>
-					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showRailStops} /></label>
-				</div>
-				<div class="poc-t-row">
-					<span class="poc-t-l">Commuter Rail</span>
-					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailLines} /></label>
-					<label class="poc-t-cell"><input type="checkbox" bind:checked={panelState.showCommuterRailStops} /></label>
-				</div>
-			</div>
-		</fieldset>
-
-		<div class="poc-map-key card-key" role="region" aria-label="Map legend">
-			<div
-				class="poc-map-key-compact"
-				class:poc-map-key-compact--split={panelState.showDevelopments}
-			>
-				<div class="poc-map-key-col poc-map-key-col--tract">
-					<p class="poc-key-one poc-key-tract-fill">
-						<strong>Tract fill</strong>
-						<span class="poc-key-tract-fill-body">
-							<span class="poc-key-tract-fill-line">
-								Census housing change (%, 2010–20). Full scale on map colorbar.
-							</span>
-							<!-- Inline diverging strip matches tract choropleth (same anchors as map scale). -->
-							<span
-								class="poc-key-tract-bar"
-								style="background: linear-gradient(to right, {MBTA_RED}, {MBTA_MAP_NEUTRAL}, {MBTA_BLUE});"
-								role="img"
-								aria-label="Housing change scale: more negative toward red, more positive toward blue"
-							></span>
-						</span>
-					</p>
-					<p class="poc-key-no-data">
-						<span
-							class="poc-key-fill-swatch poc-key-fill-swatch--no-data"
-							style="background: #e7e0d5;"
-							role="img"
-							aria-hidden="true"
-						></span>
-						<span class="poc-key-no-data-text">Tan fill: excluded due to limited data (missing or unreliable % change).</span>
-					</p>
-					<ul class="poc-key-rings">
-						<li><span class="poc-k-ring poc-k-ring--tod"></span> TOD-dominated (significant development)</li>
-						<li><span class="poc-k-ring poc-k-ring--nontod"></span> Non-TOD-dominated (significant development)</li>
-						<li><span class="poc-k-ring poc-k-ring--min"></span> Minimal development</li>
-					</ul>
-				</div>
-				{#if panelState.showDevelopments}
-					<div class="poc-map-key-col poc-map-key-col--dev">
-						<p class="poc-key-one poc-key-dev">
-							<strong>Developments</strong>
-							<span class="poc-key-tract-fill-body">
-								<span class="poc-key-tract-fill-line">
-									Fill = share of new units that are multi-family. Full scale on map colorbar.
+				<div class="poc-map-key card-key" role="region" aria-label="Map legend">
+					<div
+						class="poc-map-key-compact"
+						class:poc-map-key-compact--split={showProjectDots}
+					>
+						<div class="poc-map-key-col poc-map-key-col--tract">
+							<p class="poc-key-one poc-key-tract-fill">
+								<strong>Tract fill</strong>
+								<span class="poc-key-tract-fill-body">
+									<span class="poc-key-tract-fill-line">
+										Census housing change (%, 2010–20). Full scale on map colorbar.
+									</span>
+									<span
+										class="poc-key-tract-bar"
+										style="background: linear-gradient(to right, {MBTA_RED}, {MBTA_MAP_NEUTRAL}, {MBTA_BLUE});"
+										role="img"
+										aria-label="Housing change scale: more negative toward red, more positive toward blue"
+									></span>
 								</span>
-								<!-- Same ramp as dev dots / SVG MF legend (interpolateOrangeGreen). -->
+							</p>
+							<p class="poc-key-no-data">
 								<span
-									class="poc-key-tract-bar"
-									style="background: linear-gradient(to right, {MBTA_ORANGE}, {MBTA_GREEN});"
+									class="poc-key-fill-swatch poc-key-fill-swatch--no-data"
+									style="background: #e7e0d5;"
 									role="img"
-									aria-label="Share of new units that are multi-family: lower toward orange, higher toward green"
+									aria-hidden="true"
 								></span>
-							</span>
-						</p>
-						{#if devSizeLegendTicks && devSizeLegendTicks.length > 0}
-							<div class="poc-key-dev-sizes" aria-label="Development dot size by unit count">
-								<p class="poc-key-dev-sizes-title">Units (radius ∝ √units, same as map)</p>
-								<ul class="poc-key-dev-sizes-list">
-									{#each devSizeLegendTicks as t, i (i)}
-										<li class="poc-key-dev-size-item">
-											<span class="poc-key-dev-size-dot-wrap">
-												<span
-													class="poc-key-dev-size-dot"
-													style:width="{2 * t.rPx}px"
-													style:height="{2 * t.rPx}px"
-												></span>
-											</span>
-											<span class="poc-key-dev-size-num">{formatDevUnitsLegend(t.units)}</span>
-										</li>
-									{/each}
+								<span class="poc-key-no-data-text">Tan fill: excluded due to limited data (missing or unreliable % change).</span>
+							</p>
+							{#if showCategoryLayer}
+								<ul class="poc-key-rings">
+									<li><span class="poc-k-ring poc-k-ring--tod"></span> TOD-dominated (significant development)</li>
+									<li><span class="poc-k-ring poc-k-ring--nontod"></span> Non-TOD-dominated (significant development)</li>
+									<li><span class="poc-k-ring poc-k-ring--min"></span> Minimal development</li>
+								</ul>
+							{/if}
+						</div>
+						{#if showProjectDots}
+							<div class="poc-map-key-col poc-map-key-col--dev">
+								<p class="poc-key-one poc-key-dev">
+									<strong>Developments</strong>
+									<span class="poc-key-tract-fill-body">
+										<span class="poc-key-tract-fill-line">
+											Fill = share of new units that are multi-family. Full scale on map colorbar.
+										</span>
+										<span
+											class="poc-key-tract-bar"
+											style="background: linear-gradient(to right, {MBTA_ORANGE}, {MBTA_GREEN});"
+											role="img"
+											aria-label="Share of new units that are multi-family: lower toward orange, higher toward green"
+										></span>
+									</span>
+								</p>
+								{#if devSizeLegendTicks && devSizeLegendTicks.length > 0}
+									<div class="poc-key-dev-sizes" aria-label="Development dot size by unit count">
+										<p class="poc-key-dev-sizes-title">Units (radius ∝ √units, same as map)</p>
+										<ul class="poc-key-dev-sizes-list">
+											{#each devSizeLegendTicks as t, i (i)}
+												<li class="poc-key-dev-size-item">
+													<span class="poc-key-dev-size-dot-wrap">
+														<span
+															class="poc-key-dev-size-dot"
+															style:width="{2 * t.rPx}px"
+															style:height="{2 * t.rPx}px"
+														></span>
+													</span>
+													<span class="poc-key-dev-size-num">{formatDevUnitsLegend(t.units)}</span>
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+								<ul class="poc-key-rings" aria-label="Development dot outlines">
+									<li>
+										<span class="poc-k-ring poc-k-ring--dev-access"></span> Transit-accessible
+									</li>
+									<li>
+										<span class="poc-k-ring poc-k-ring--dev-noaccess"></span> Not transit-accessible
+									</li>
 								</ul>
 							</div>
 						{/if}
-						<ul class="poc-key-rings" aria-label="Development dot outlines">
-							<li>
-								<span class="poc-k-ring poc-k-ring--dev-access"></span> Transit-accessible
-							</li>
-							<li>
-								<span class="poc-k-ring poc-k-ring--dev-noaccess"></span> Not transit-accessible
-							</li>
-						</ul>
+					</div>
+				</div>
+			</div>
+
+			<div class="map-wrap">
+				<div class="map-root" bind:this={containerEl}></div>
+				{#if tooltip.visible}
+					<div
+						class="map-tooltip"
+						style:left="{tooltip.x + 12}px"
+						style:top="{tooltip.y + 12}px"
+					>
+						{#each tooltip.lines as line, i (i)}
+							<p class:tooltip-bold={line.bold}>{line.text}</p>
+						{/each}
 					</div>
 				{/if}
 			</div>
 		</div>
-	</div>
 
-	<div class="map-wrap">
-		<div class="map-root" bind:this={containerEl}></div>
-		{#if tooltip.visible}
-			<div
-				class="map-tooltip"
-				style:left="{tooltip.x + 12}px"
-				style:top="{tooltip.y + 12}px"
-			>
-				{#each tooltip.lines as line, i (i)}
-					<p class:tooltip-bold={line.bold}>{line.text}</p>
-				{/each}
-			</div>
-		{/if}
+		<div class="poc-story-rail" aria-label="Map walkthrough">
+			{#each storySteps as step, i}
+				<section
+					class="poc-story-step"
+					class:poc-story-step--active={currentStep === i}
+					data-step-index={i}
+					use:bindStep={i}
+				>
+					<div class="poc-story-step-kicker">{step.title}</div>
+					<h4>{step.heading}</h4>
+					<p>{step.body}</p>
+				</section>
+			{/each}
+		</div>
 	</div>
 	<p class="poc-map-zoom-hint">Scroll or pinch to zoom · drag to pan · click tracts to select (optional)</p>
 </div>
@@ -1068,33 +1179,70 @@
 	.poc-nhgis-map {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 10px;
 		min-width: 0;
 	}
 
-	.poc-dev-toggle {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		margin: 0;
-		padding: 8px 10px;
-		border-radius: var(--radius-sm);
-		border: 2px solid color-mix(in srgb, var(--accent) 55%, var(--border));
-		background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--text);
-		cursor: pointer;
-		user-select: none;
-		line-height: 1.25;
+	.poc-story-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.72fr);
+		gap: 18px;
+		align-items: start;
 	}
 
-	.poc-dev-toggle input {
-		width: 1.1rem;
-		height: 1.1rem;
-		accent-color: var(--accent);
+	.poc-story-graphic {
+		position: sticky;
+		top: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		min-width: 0;
+	}
+
+	.poc-story-rail {
+		display: flex;
+		flex-direction: column;
+		gap: 28px;
+		padding-top: 8px;
+	}
+
+	.poc-story-step {
+		min-height: 56vh;
+		padding: 16px 16px 18px;
+		border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--accent) 3%, var(--bg-card));
+		opacity: 0.52;
+		transition: opacity 180ms ease, border-color 180ms ease, background 180ms ease;
+	}
+
+	.poc-story-step--active {
+		opacity: 1;
+		border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+		background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+	}
+
+	.poc-story-step-kicker {
+		margin-bottom: 8px;
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+
+	.poc-story-step h4 {
+		margin: 0 0 8px;
+		font-size: 1rem;
+		line-height: 1.25;
+		color: var(--text);
+	}
+
+	.poc-story-step p {
 		margin: 0;
-		flex-shrink: 0;
+		font-size: 0.88rem;
+		line-height: 1.55;
+		color: var(--text-muted);
 	}
 
 	/* Transit toggles ~1/4 width; text legend ~3/4 on wide viewports */
@@ -1470,6 +1618,24 @@
 		margin: 0;
 		font-size: 0.7rem;
 		color: var(--text-muted);
+	}
+
+	@media (max-width: 980px) {
+		.poc-story-layout {
+			grid-template-columns: 1fr;
+		}
+
+		.poc-story-graphic {
+			position: static;
+		}
+
+		.poc-story-rail {
+			gap: 12px;
+		}
+
+		.poc-story-step {
+			min-height: auto;
+		}
 	}
 
 	:global(.map-empty) {
