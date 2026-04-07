@@ -100,9 +100,9 @@
 		<div class="eyebrow">Interactive Visualization Writeup</div>
 		<h1>Tract categorizations and housing change in Massachusetts.</h1>
 		<p class="subtitle">
-			This proof of concept focuses on one interactive figure: a tract-level housing change map that progressively
-			introduces TOD-dominated tracts, non-TOD-dominated tracts, and the MassBuilds developments behind those
-			patterns. The goal is to make one spatial story legible, rather than splitting attention across many charts.
+			This proof of concept focuses on one graphic: a tract-level map of housing change that progressively adds
+			TOD-dominated tracts, non-TOD-dominated tracts, and the MassBuilds projects behind those patterns. The rest
+			of the broader dashboard is preserved below as commented archive notes rather than rendered content.
 		</p>
 	</section>
 
@@ -111,13 +111,12 @@
 		<p>
 			Tracts are colored by <strong>census percent change in housing units (2010–20)</strong> and outlined by
 			MassBuilds cohort: <strong>TOD-dominated</strong>, <strong>non-TOD-dominated</strong>, and
-			<strong>minimal development</strong>. The scroll-driven steps built into the figure start with housing
-			change alone, then add the tract categorization, and finally add the project points that produce those
-			patterns.
+			<strong>minimal development</strong>. The scroll sequence starts with statewide housing change, then adds
+			tract category boundaries, and finally adds the projects that help explain those patterns.
 		</p>
 		<p>
-			This framing helps answer a simple policy question: where is transit-oriented development actually
-			concentrating, and how different do those tracts look from the statewide background?
+			The goal is to help the reader compare statewide background change with the places where transit-oriented
+			development is actually concentrated.
 		</p>
 	</section>
 
@@ -153,14 +152,13 @@
 		<section class="story card full-width">
 			<h2>How to interpret it</h2>
 			<p>
-				The first map state shows where housing growth happened. The second adds the development categories so
-				you can distinguish transit-oriented growth from other kinds of tract change. The third adds project
-				points, which makes the tract-level pattern feel grounded in actual development activity rather than just
-				abstract boundaries.
+				Read the map in three passes. First, the choropleth shows where tract-level housing growth was strongest.
+				Second, the cohort outlines separate TOD-dominated tracts from non-TOD and minimal-development tracts.
+				Third, the MassBuilds points connect those tract patterns back to specific projects on the ground.
 			</p>
 			<p>
-				That sequence is the core interaction technique in this proof of concept. It turns the map into a guided
-				explanation rather than a static figure or an open-ended dashboard.
+				This keeps the interaction focused on one question: where do transit-oriented development patterns stand
+				out from the broader statewide housing-change map?
 			</p>
 		</section>
 
@@ -173,6 +171,19 @@
 			</ul>
 		</section>
 	{/if}
+
+	<!--
+	Archived from the broader copied POC and intentionally not rendered here:
+
+	- Municipal dashboard summary and filter controls
+	- TOD status / affordability / concentration narrative sections
+	- Income and education scatterplot sections
+	- Affordability comparison and bottom-line summary cards
+	- Interactive explorer gate and auxiliary routes (`/poc`, `/policy`, `/tract`, `/income-tod`)
+
+	The goal of this standalone page is to keep only the tract housing-change overview map
+	and the narrative that directly helps the reader interpret that one graphic.
+	-->
 </div>
 
 <style>
