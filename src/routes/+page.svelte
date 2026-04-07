@@ -738,6 +738,7 @@
 				<p>
 					Across the visible time window, most new housing is still non-TOD, even though TOD production has grown in absolute terms. At the same time, affordability has not kept pace with total production, which is why this project treats TOD as a strategy that still needs policy guardrails.
 				</p>
+				<!--
 				<details class="supplemental">
 					<summary>Open supplemental charts: TOD/non-TOD mix and affordability over time</summary>
 					<div class="small-grid supplemental-grid">
@@ -754,6 +755,7 @@
 						</section>
 					</div>
 				</details>
+				-->
 			</section>
 
 			<section class="story card">
@@ -768,6 +770,7 @@
 				<p>
 					TOD is not happening evenly across Massachusetts. In this dataset, it is more concentrated in lower-income municipalities, and recent unit growth is concentrated in a relatively small set of places. That is the setup for the equity question explored in the tract analysis below.
 				</p>
+				<!--
 				<details class="supplemental">
 					<summary>Open supplemental charts: income scatter, concentration ranking, and municipal map</summary>
 					<section class="chart-card card supplemental-card">
@@ -796,10 +799,11 @@
 						</section>
 					</div>
 				</details>
+				-->
 			</section>
 
 			<!-- ── 4. Most not affordable (single card: narrative + chart) ───────────────── -->
-			<section class="card story-chart-panel">
+			<!-- <section class="card story-chart-panel">
 				<div class="story-chart-panel__grid">
 					<div class="story-chart-panel__text">
 						<h2>Why affordability is the key policy lever</h2>
@@ -821,7 +825,7 @@
 						<div class="chart-wrap small-chart compact-side-chart" bind:this={elAffordMix}></div>
 					</div>
 				</div>
-			</section>
+			</section> -->
 
 			<!-- ── 5. Displacement explanation ──────────── -->
 			<section class="story card">
@@ -844,7 +848,7 @@
 			</section>
 
 			<!-- ── 6. Higher-vulnerability areas (single card: narrative + chart) ─────────── -->
-			<section class="card story-chart-panel">
+			<!-- <section class="card story-chart-panel">
 				<div class="story-chart-panel__grid">
 					<div class="story-chart-panel__text">
 						<h2>More development is landing in higher-vulnerability municipalities</h2>
@@ -859,7 +863,7 @@
 						<div class="chart-wrap small-chart compact-side-chart" bind:this={elGrowthCapture}></div>
 					</div>
 				</div>
-			</section>
+			</section> -->
 		</div>
 	</section>
 
@@ -928,7 +932,7 @@
 				</div>
 			</section>
 
-			<div class="story-chart-row story-chart-row--tract full-width">
+			<!-- <div class="story-chart-row story-chart-row--tract full-width">
 				<section class="story card story-chart-text">
 					<h2>Income analysis</h2>
 					<p>
@@ -960,9 +964,9 @@
 						<TodIntensityScatter panelState={incomePanelState} wideLayout />
 					</div>
 				</section>
-			</div>
+			</div> -->
 
-			<div class="story-chart-row story-chart-row--tract full-width">
+			<!-- <div class="story-chart-row story-chart-row--tract full-width">
 				<section class="story card story-chart-text">
 					<h2>Education analysis</h2>
 					<p>
@@ -988,9 +992,9 @@
 						<TodIntensityScatter panelState={eduPanelState} wideLayout />
 					</div>
 				</section>
-			</div>
+			</div> -->
 
-			<section class="chart-card card full-width">
+			<!-- <section class="chart-card card full-width">
 				<h3>Income & education — TOD-dominated vs non-TOD vs minimal development</h3>
 				<p class="chart-note">
 					Population-weighted means (MassBuilds cohort tiers); bars compare TOD-dominated,
@@ -999,7 +1003,7 @@
 					dominated and minimal development tracts.
 				</p>
 				<div class="chart-wrap chart-wrap--tract-edu" bind:this={elTractEdu}></div>
-			</section>
+			</section> -->
 
 			<section class="story card full-width">
 				<h2>How affordability could help</h2>
@@ -1027,7 +1031,7 @@
 				</p> -->
 			</section>
 
-			<section class="summary card full-width">
+			<!-- <section class="summary card full-width">
 				<h2>Bottom line</h2>
 				<p class="chart-note">
 					The tract-level evidence is organized around one takeaway:
@@ -1095,7 +1099,7 @@
 				{/if}
 
 				<div class="chart-wrap" style="margin-top: 16px;" bind:this={elTakeaway}></div>
-			</section>
+			</section> -->
 
 			<section class="story card full-width conclusion">
 				<h2>Conclusion</h2>
@@ -1116,7 +1120,7 @@
 				</p>
 			</section>
 
-			<ExploreTractSection />
+			<!-- <ExploreTractSection /> -->
 		{/if}
 	</section>
 
