@@ -11,6 +11,9 @@ tod-choropleth-story/
 ├── vite.config.js
 ├── static/data/
 │   ├── developments.json
+│   ├── mbta_lines.geojson
+│   ├── mbta_stops.json
+│   ├── meta.json
 │   ├── tract_data.json
 │   └── tracts.geojson
 └── src/
@@ -21,22 +24,27 @@ tod-choropleth-story/
     │   └── +page.svelte
     └── lib/
         ├── components/
-        │   ├── ChoroplethMap.svelte
-        │   └── ScrollNarrative.svelte
+        │   └── PocNhgisTractMap.svelte
+        ├── stores/
+        │   ├── data.svelte.js
+        │   └── panelState.svelte.js
         └── utils/
-            ├── stepManager.js
-            └── tractStoryModel.js
+            ├── derived.js
+            ├── mainPocTractModel.js
+            ├── mbtaColors.js
+            └── periods.js
 ```
 
 ## What each module does
 
-- `+page.svelte`: page shell, loading state, story copy, and writeup sections.
-- `ChoroplethMap.svelte`: sticky choropleth, legend, hover interactions, tract category overlays, and project points.
-- `ScrollNarrative.svelte`: scrollytelling text blocks that drive the active map step.
-- `stepManager.js`: IntersectionObserver action for step activation.
-- `tractStoryModel.js`: focused data loading and local TOD classification logic for the story.
+- `+page.svelte`: the story framing, loading state, and writeup sections around the map.
+- `PocNhgisTractMap.svelte`: the exact tract scrollytelling map carried over from `tod-d3-poc`.
+- `data.svelte.js`: shared tract, MBTA, and development data loading.
+- `panelState.svelte.js`: the map state object needed by the original tract component.
+- `mainPocTractModel.js`: tract filtering and TOD/non-TOD classification logic reused from the original project.
+- `derived.js`, `periods.js`, and `mbtaColors.js`: the minimal supporting utilities the exact map depends on.
 
 ## Scope decisions
 
-- Kept: tract geometry, tract attributes, MassBuilds projects, scrollytelling layout, tooltip hierarchy, writeup sections.
-- Removed: all other charts, dashboard controls, panel state stores, experimental map variants, municipal analytics, and unused assets.
+- Kept: the original tract scrollytelling map, tract geometry, tract attributes, MBTA overlays, MassBuilds projects, tooltip hierarchy, and the writeup sections that frame the map.
+- Removed: unrelated charts, municipal analytics, sandbox/dashboard controls outside the map component, experimental alternatives, and unused assets.
